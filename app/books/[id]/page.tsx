@@ -37,6 +37,8 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
   })
 
   const addItem = useCart((state) => state.addItem)
+  const items = useCart((state) => state.items)
+  const isInCart = items.some(i => i.id === book?.id)
 
   const handleAddToCart = () => {
     if (!book) return
@@ -162,10 +164,19 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <Button size="lg" className="gap-2" onClick={handleAddToCart}>
-                    <ShoppingCart className="h-5 w-5" />
-                    Add to Cart
-                  </Button>
+                  {isInCart ? (
+                    <Link href="/cart" className="w-full">
+                      <Button size="lg" className="w-full gap-2">
+                        <ShoppingCart className="h-5 w-5" />
+                        Go to Cart
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button size="lg" className="gap-2" onClick={handleAddToCart}>
+                      <ShoppingCart className="h-5 w-5" />
+                      Add to Cart
+                    </Button>
+                  )}
                   <div className="flex gap-3">
                     <Button
                       variant="outline"

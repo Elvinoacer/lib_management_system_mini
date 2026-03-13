@@ -5,23 +5,20 @@ import { NextResponse } from "next/server"
 export async function GET() {
   try {
     const session = await auth()
-    if (!session?.user?.id) {
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userDownloads = await prisma.download.findMany({
+    const downloads = await prisma.download.findMany({
       where: { userId: session.user.id },
-      include: {
-        book: true
-      },
-      orderBy: { grantedAt: 'desc' }
+      include: { book: true },
+      orderBy: { createdAt: 'desc' }
     })
 
-    const books = userDownloads.map(d => d.book)
-
+    const books = downloads.map(d => d.book)
     return NextResponse.json(books)
   } catch (error) {
-    console.error("My Library fetch error:", error)
-    return NextResponse.json({ error: "Failed to fetch library" }, { status: 500 })
+    console.error("Failed to fetch library books:", error)
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }

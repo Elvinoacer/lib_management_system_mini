@@ -5,7 +5,7 @@ import { NextResponse } from "next/server"
 
 export async function GET(
   req: Request,
-  { params }: { params: { bookId: string } }
+  { params }: { params: Promise<{ bookId: string }> }
 ) {
   try {
     const session = await auth()
@@ -13,12 +13,13 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { bookId } = await params
     // Verify ownership
     const download = await prisma.download.findUnique({
       where: {
         userId_bookId: {
           userId: session.user.id!,
-          bookId: params.bookId
+          bookId
         }
       },
       include: { book: true }

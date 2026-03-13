@@ -21,11 +21,12 @@ const bookUpdateSchema = z.object({
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const book = await prisma.book.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!book) {
@@ -40,7 +41,7 @@ export async function GET(
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
@@ -49,6 +50,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const body = await req.json()
     const validatedData = bookUpdateSchema.parse(body)
 
@@ -60,7 +62,7 @@ export async function PATCH(
     }
 
     const book = await prisma.book.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     })
 
@@ -75,7 +77,7 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
@@ -84,9 +86,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    await prisma.book.delete({
-      where: { id: params.id },
-    })
+    const { id } = await params
+    await prisma.$transaction([
+      prisma.review.deleteMany({ where: { bookId: id } }),
+      prisma.download.deleteMany({ where: { bookId: id } }),
+      prisma.orderItem.deleteMany({ where: { bookId: id } }),
+      prisma.book.delete({ where: { id } }),
+    ])
 
     return NextResponse.json({ message: "Book deleted" })
   } catch (error) {

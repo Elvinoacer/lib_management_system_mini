@@ -135,7 +135,7 @@ export default function MyLibraryPage() {
                         className="relative block aspect-[3/4] overflow-hidden bg-secondary"
                       >
                         <Image
-                          src={book.coverUrl}
+                          src={book.coverUrl || "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=600&fit=crop"}
                           alt={book.title}
                           fill
                           className="object-cover transition-transform duration-300 group-hover:scale-105"
@@ -185,7 +185,7 @@ export default function MyLibraryPage() {
                         className="relative h-32 w-24 shrink-0 overflow-hidden rounded-md bg-secondary"
                       >
                         <Image
-                          src={book.coverUrl}
+                          src={book.coverUrl || "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=600&fit=crop"}
                           alt={book.title}
                           fill
                           className="object-cover"

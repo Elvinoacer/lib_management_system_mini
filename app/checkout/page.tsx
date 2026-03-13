@@ -26,6 +26,7 @@ export default function CheckoutPage() {
   const router = useRouter()
   
   const items = useCart((state) => state.items)
+  const clearCart = useCart((state) => state.clearCart)
   const cartItems = items
   const subtotal = items.reduce((sum, item) => sum + Number(item.price), 0)
   const total = subtotal
@@ -39,6 +40,11 @@ export default function CheckoutPage() {
 
     if (items.length === 0) {
       toast.error("Your cart is empty")
+      return
+    }
+
+    if (paymentMethod === "mpesa" && !phoneNumber) {
+      toast.error("Please enter your M-Pesa phone number")
       return
     }
 
@@ -62,6 +68,7 @@ export default function CheckoutPage() {
 
       // Redirect to IntaSend checkout URL
       if (data.url) {
+        clearCart()
         window.location.href = data.url
       } else {
         throw new Error("Invalid response from payment gateway")
@@ -134,19 +141,20 @@ export default function CheckoutPage() {
                   {/* Card Option */}
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod("card")}
+                    disabled
                     className={cn(
-                      "flex items-center gap-3 rounded-lg border-2 p-4 text-left transition-colors",
-                      paymentMethod === "card"
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
+                      "flex items-center gap-3 rounded-lg border-2 p-4 text-left transition-colors opacity-50 cursor-not-allowed",
+                      "border-border"
                     )}
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                       <CreditCard className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium text-foreground">Card</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-foreground">Card</p>
+                        <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Coming Soon</span>
+                      </div>
                       <p className="text-sm text-muted-foreground">Visa / Mastercard</p>
                     </div>
                   </button>
@@ -155,7 +163,7 @@ export default function CheckoutPage() {
 
               {/* Payment Details */}
               <div className="rounded-lg border border-border bg-card p-6">
-                {paymentMethod === "mpesa" ? (
+                {paymentMethod === "mpesa" && (
                   <div className="flex flex-col gap-4">
                     <div>
                       <Label htmlFor="phone">M-Pesa Phone Number</Label>
@@ -170,47 +178,6 @@ export default function CheckoutPage() {
                       <p className="mt-2 text-sm text-muted-foreground">
                         You will receive an STK Push prompt on this number
                       </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-4">
-                    <div>
-                      <Label htmlFor="cardNumber">Card Number</Label>
-                      <Input
-                        id="cardNumber"
-                        type="text"
-                        placeholder="1234 5678 9012 3456"
-                        className="mt-2"
-                      />
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <Label htmlFor="expiry">Expiry Date</Label>
-                        <Input
-                          id="expiry"
-                          type="text"
-                          placeholder="MM/YY"
-                          className="mt-2"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="cvv">CVV</Label>
-                        <Input
-                          id="cvv"
-                          type="text"
-                          placeholder="123"
-                          className="mt-2"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="cardName">Name on Card</Label>
-                      <Input
-                        id="cardName"
-                        type="text"
-                        placeholder="John Doe"
-                        className="mt-2"
-                      />
                     </div>
                   </div>
                 )}

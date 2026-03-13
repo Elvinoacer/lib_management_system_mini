@@ -1,492 +1,297 @@
-# 🔍 Kitabu — Findings & Fix Suggestions
-
-> Audit of the current codebase against `reqs/prd.md`  
+# Kitabu — v4 Audit Report
+> Comparing previous findings against the uploaded codebase.  
 > Date: March 13, 2026
 
 ---
 
-## Summary
+## Previous Issues: What Was Fixed vs What Wasn't
 
-The project is in good shape overall — the full stack foundation is laid, all API routes exist, auth is wired, and most pages connect to real data. However, there are **11 bugs** that will cause crashes or broken features at runtime, plus **5 incomplete features** that still need work before the app is production-ready.
+| # | Issue | Status |
+|---|---|---|
+| 1 | `DATABASE_URL` missing from `prisma/schema.prisma` | ❌ **Still broken** |
+| 2 | Seed uses `password` instead of `passwordHash` | ❌ **Still broken** |
+| 3 | Seed upserts on non-unique `title` field | ❌ **Still broken** |
+| 4 | `admin/stats` aggregates `_sum: { amount }` (wrong field) | ❌ **Still broken** |
+| 5 | `admin/stats` maps `o.amount` in recentOrders | ❌ **Still broken** |
+| 6 | `admin/orders` maps `order.amount` (wrong field) | ❌ **Still broken** |
+| 7 | `SessionProvider` missing from `app/layout.tsx` | ❌ **Still broken** |
+| 8 | `POST /api/books` passes `bookSchema` directly to Prisma (field mismatch) | ❌ **Still broken** |
+| 9 | `bookSchema` has `fileUrl`, `fileFormat`, `pages` — not in Prisma model | ❌ **Still broken** |
+| 10 | My Library download calls wrong endpoint (`/api/books/`) and checks `data.downloadUrl` | ❌ **Still broken** |
+| 11 | My Library query fetches `/api/books?purchased=true` (no such filter exists) | ❌ **Still broken** |
+| 12 | `app/cart/page.tsx` uses hardcoded mock data, not Zustand store | ❌ **Still broken** |
+| 13 | `app/admin/page.tsx` missing `"use client"` directive | ❌ **Still broken** |
+| 14 | `app/admin/books/page.tsx` uses `<Link>` without importing it | ❌ **Still broken** |
+| 15 | `app/api/upload/route.ts` uses `R2_CUSTOM_DOMAIN` (should be `R2_PUBLIC_URL`) | ❌ **Still broken** |
+| 16 | `app/checkout/success/page.tsx` does not exist (IntaSend redirects to 404) | ❌ **Still missing** |
+| 17 | No `GET /api/orders` for user's own order list — `app/orders/page.tsx` still uses mock data | ❌ **Still broken** |
+| 18 | Free books (`isFree: true`, price 0) still routed through IntaSend | ❌ **Still broken** |
+| 19 | `components/books/featured-books.tsx` still uses hardcoded mock data | ❌ **Still broken** |
+| 20 | Webhook has no signature verification | ❌ **Still missing** |
+| 21 | `.env.example` not committed | ❌ **Still missing** |
+| 22 | Register UI says "8 characters min", Zod validates `min(6)` | ❌ **Still present** |
+| 23 | `next.config.mjs` has `ignoreBuildErrors: true` | ❌ **Still present** |
+
+**0 of 23 previously reported issues were fixed in this upload.**
 
 ---
 
-## 🔴 Bugs — Will Break at Runtime
+## New Bugs Found in v4
+
+These are issues not in the previous report, found during this audit pass.
 
 ---
 
-### Bug 1 — `DATABASE_URL` missing from Prisma schema
-**File:** `prisma/schema.prisma`
+### New Bug 1 — `phoneNumber` is captured but never sent to the API
+**File:** `app/checkout/page.tsx`
 
-The `datasource db` block has no `url` field. Without it, Prisma cannot connect to any database. Every single API route will crash, `prisma migrate dev` will fail, and seeding will fail.
+The UI has a fully functional M-Pesa phone number input field, and `phoneNumber` state is populated when the user types. But the `handleCheckout` function never sends it to `POST /api/orders`. The API also doesn't accept it. For M-Pesa STK Push to work, the phone number must be passed through to IntaSend.
 
-```prisma
-// ❌ Current
-datasource db {
-  provider = "postgresql"
+```ts
+// ❌ Current — phoneNumber is collected but silently dropped
+body: JSON.stringify({
+  bookIds: items.map(item => item.id)
+})
+
+// ✅ Fix — pass phone through, validate it first
+if (paymentMethod === "mpesa" && !phoneNumber) {
+  toast.error("Please enter your M-Pesa phone number")
+  return
 }
 
-// ✅ Fix
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-```
-
----
-
-### Bug 2 — Seed uses wrong field name `password` instead of `passwordHash`
-**File:** `prisma/seed.ts`, line ~14
-
-The Prisma `User` model defines `passwordHash`, not `password`. Running `pnpm prisma db seed` will throw a Prisma validation error and no admin user will be created.
-
-```ts
-// ❌ Current
-create: {
-  email: "admin@kitabu.com",
-  name: "Admin User",
-  password: adminPassword,   // ← field does not exist on User model
-  role: "ADMIN",
-},
-
-// ✅ Fix
-create: {
-  email: "admin@kitabu.com",
-  name: "Admin User",
-  passwordHash: adminPassword,
-  role: "ADMIN",
-},
-```
-
----
-
-### Bug 3 — Seed `upsert` uses non-unique field `title` for books
-**File:** `prisma/seed.ts`, line ~43
-
-Prisma `upsert` requires a `@unique` field in the `where` clause. `title` has no `@unique` constraint in the schema, so this throws at runtime. Additionally, seed books include `fileFormat` and `language: "English"` — both unknown to the schema (`language` default is `"en"`, and `fileFormat` doesn't exist on the `Book` model at all).
-
-```ts
-// ❌ Current
-await prisma.book.upsert({
-  where: { title: book.title },   // ← not a @unique field
-  create: {
-    ...book,
-    fileFormat: "PDF",            // ← field doesn't exist on Book model
-    language: "English",          // ← schema default is "en", not "English"
-  }
+body: JSON.stringify({
+  bookIds: items.map(item => item.id),
+  phoneNumber,
 })
 
-// ✅ Fix — use isbn (which is @unique), add required fileKey, remove unknown fields
-await prisma.book.upsert({
-  where: { isbn: book.isbn },
-  update: {},
-  create: {
-    isbn: book.isbn,
-    title: book.title,
-    author: book.author,
-    description: book.description,
-    price: book.price,
-    isFree: book.isFree,
-    coverUrl: book.coverUrl,
-    fileKey: "placeholder/filename.pdf",  // required field
-    genres: book.genres,
-    language: "en",
-  }
-})
+// Also update POST /api/orders to accept and forward it to IntaSend:
+const { bookIds, phoneNumber } = orderCreateSchema.parse(body)
+// then pass to intasend.collection().charge({ ..., phone_number: phoneNumber })
 ```
 
 ---
 
-### Bug 4 — Admin stats API aggregates wrong field `amount` (doesn't exist)
-**File:** `app/api/admin/stats/route.ts`, line ~18
+### New Bug 2 — Card payment fields are fully rendered UI but do nothing
+**File:** `app/checkout/page.tsx`
 
-The Prisma `Order` model has `totalAmount`, not `amount`. This query will throw a Prisma type error at runtime, crashing the admin dashboard every time it loads.
+The "Card" payment tab shows card number, expiry, CVV, and cardholder name inputs. When the user fills these out and clicks Pay, `handleCheckout` sends only `bookIds` — no card data — and the request goes to `POST /api/orders` which always calls IntaSend's hosted checkout (a redirect flow), not a card charge API. The card fields are dead UI that creates a false impression of card payment support.
 
-```ts
-// ❌ Current
-const totalRevenue = await prisma.order.aggregate({
-  where: { status: "PAID" },
-  _sum: { amount: true }       // ← no such field
-})
-
-// ✅ Fix
-const totalRevenue = await prisma.order.aggregate({
-  where: { status: "PAID" },
-  _sum: { totalAmount: true }
-})
-```
-
-Also on line ~38, the mapping references `o.amount` which should be `o.totalAmount`:
-
-```ts
-// ❌ Current
-amount: Number(o.amount),
-
-// ✅ Fix
-amount: Number(o.totalAmount),
-```
+**Fix options:**
+- Remove the Card tab entirely until card payments are properly implemented via IntaSend's card API
+- Or clearly label it as "coming soon" and disable the Pay button when card is selected
 
 ---
 
-### Bug 5 — Admin orders API maps wrong field `order.amount`
-**File:** `app/api/admin/orders/route.ts`, line ~53
-
-Same issue as Bug 4 — `Order` has no `amount` field. The formatted response will return `total: NaN` and incorrect `paymentMethod` for every order.
-
-```ts
-// ❌ Current
-total: Number(order.amount),
-paymentMethod: order.status === "PAID" ? "IntaSend" : order.amount > 0 ? "Pending" : "Free"
-
-// ✅ Fix
-total: Number(order.totalAmount),
-paymentMethod: order.status === "PAID" ? "IntaSend" : Number(order.totalAmount) > 0 ? "Pending" : "Free"
-```
-
----
-
-### Bug 6 — `SessionProvider` missing from `app/layout.tsx`
-**File:** `app/layout.tsx`
-
-`next-auth/react` hooks — `useSession()`, `signIn()`, `signOut()` — all require a `<SessionProvider>` in the component tree. It is absent. Every page that calls these hooks (login, header, checkout, my-library) will silently return `null` sessions or throw a context error.
-
-```tsx
-// ✅ Fix — add to layout.tsx
-import { SessionProvider } from 'next-auth/react'
-
-// Wrap children:
-<SessionProvider>
-  <QueryProvider>
-    {children}
-    <Toaster position="top-center" richColors />
-  </QueryProvider>
-</SessionProvider>
-```
-
----
-
-### Bug 7 — `POST /api/books` passes `bookSchema` directly to Prisma (field mismatch)
-**File:** `app/api/books/route.ts` + `lib/validations/index.ts`
-
-`bookSchema` contains fields that don't exist on the Prisma `Book` model (`fileUrl`, `fileFormat`, `pages`), and is missing the required `fileKey` field. Calling `prisma.book.create({ data: validatedData })` directly will throw a Prisma unknown field error.
-
-```ts
-// ❌ Current bookSchema includes:
-fileUrl: z.string().url()...   // ← not in Prisma model
-fileFormat: z.string()...      // ← not in Prisma model
-pages: z.number()...           // ← Prisma field is pageCount
-
-// ✅ Fix option 1 — update bookSchema to match Prisma model
-export const bookSchema = z.object({
-  title: z.string().min(1),
-  author: z.string().min(1),
-  description: z.string().min(10),
-  price: z.number().min(0),
-  isFree: z.boolean().default(false),
-  coverUrl: z.string().url().optional().or(z.literal("")),
-  fileKey: z.string().min(1, "File key is required"),  // ← correct field
-  genres: z.array(z.string()).min(1),
-  language: z.string().default("en"),
-  pageCount: z.number().optional(),                    // ← correct field name
-})
-
-// ✅ Fix option 2 — keep schema as-is, manually map fields in route.ts
-const book = await prisma.book.create({
-  data: {
-    title: validatedData.title,
-    author: validatedData.author,
-    description: validatedData.description,
-    price: validatedData.price,
-    isFree: validatedData.isFree,
-    coverUrl: validatedData.coverUrl || null,
-    fileKey: validatedData.fileKey || "",
-    genres: validatedData.genres,
-    language: validatedData.language || "en",
-    pageCount: validatedData.pages || null,
-  }
-})
-```
-
----
-
-### Bug 8 — My Library download handler calls the wrong API endpoint
-**File:** `app/my-library/page.tsx`, lines ~43–50
-
-The download button calls `GET /api/books/${book.id}` and looks for `data.downloadUrl` in the response. That endpoint returns book metadata — there is no `downloadUrl` field on it. The correct endpoint is `GET /api/downloads/${book.id}`, which returns `{ url }`. Every download attempt will fail silently with "Download link not available".
-
-```ts
-// ❌ Current
-const res = await fetch(`/api/books/${book.id}`)
-const data = await res.json()
-if (data.downloadUrl) {
-  window.open(data.downloadUrl, '_blank')
-}
-
-// ✅ Fix
-const res = await fetch(`/api/downloads/${book.id}`)
-const data = await res.json()
-if (data.url) {
-  window.open(data.url, '_blank')
-}
-```
-
----
-
-### Bug 9 — My Library fetches from wrong endpoint (`/api/books?purchased=true`)
-**File:** `app/my-library/page.tsx`, line ~28
-
-`GET /api/books` has no `purchased` filter — it returns the full public book catalogue regardless of that param. The My Library page will show every book in the database to every user, not just their purchased books. There is no dedicated endpoint for fetching a user's purchased books.
-
-```ts
-// ❌ Current — returns all books, ignores purchased param
-const res = await fetch(`/api/books?purchased=true`)
-
-// ✅ Fix — needs a new API route GET /api/my-library (or /api/downloads)
-// Create app/api/my-library/route.ts:
-export async function GET() {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-  const downloads = await prisma.download.findMany({
-    where: { userId: session.user.id },
-    include: { book: true }
-  })
-
-  return NextResponse.json(downloads.map(d => d.book))
-}
-
-// Then in my-library/page.tsx:
-const res = await fetch('/api/my-library')
-```
-
----
-
-### Bug 10 — `app/admin/page.tsx` uses React hooks without `"use client"` directive
-**File:** `app/admin/page.tsx`
-
-The file calls `useQuery` (a React hook) but has no `"use client"` at the top. Next.js will treat it as a Server Component and throw a build/runtime error because hooks cannot run in Server Components.
-
-```tsx
-// ✅ Fix — add as the very first line of the file
-"use client"
-
-import Link from "next/link"
-// ... rest of file
-```
-
----
-
-### Bug 11 — `app/api/upload/route.ts` references undefined env var `R2_CUSTOM_DOMAIN`
-**File:** `app/api/upload/route.ts`, line ~35
-
-The env variable used is `R2_CUSTOM_DOMAIN`, but the PRD and every other part of the code uses `R2_PUBLIC_URL`. When undefined, every upload response returns `"https://undefined/..."` as the public URL, which will be stored in the database and break all cover image displays.
-
-```ts
-// ❌ Current
-const publicUrl = `https://${process.env.R2_CUSTOM_DOMAIN}/${fileKey}`
-
-// ✅ Fix
-const publicUrl = `${process.env.R2_PUBLIC_URL}/${fileKey}`
-```
-
----
-
-## 🟡 Incomplete Features — Functionally Broken
-
----
-
-### Missing 1 — `app/orders/page.tsx` still uses hardcoded mock data
-**File:** `app/orders/page.tsx`
-
-This page was never updated from the original mock. It shows three fake static orders to every user. There is also no `GET /api/orders` route for listing a user's own orders (only `GET /api/orders/[id]` for a single order exists).
-
-**What needs doing:**
-1. Create `app/api/orders/route.ts` `GET` handler that returns all orders for the current session user
-2. Replace the mock `const orders` array with a `useQuery` call to that endpoint
-
----
-
-### Missing 2 — `app/cart/page.tsx` still uses hardcoded mock data
+### New Bug 3 — Cart page `removeItem` does not work (local state only)
 **File:** `app/cart/page.tsx`
 
-The cart page still uses the old `initialCartItems` mock array with `useState`. It is completely disconnected from the Zustand store (`lib/store/cart.ts`) that every other page now uses correctly. Adding a book to cart on the books page has no effect on what the cart page shows.
-
-**What needs doing:** Replace `useState<CartItem[]>(initialCartItems)` with `useCart()` from the Zustand store.
+The cart page still uses a local `useState` array (`initialCartItems`) with a local `removeItem` that filters that array. Meanwhile, the Zustand store (`lib/store/cart.ts`) is the actual source of cart state — used by the header (badge count), books page (add to cart), and checkout page. Removing an item on the cart page only updates the local visual state; the Zustand store is untouched, so after navigation the removed item reappears, the header badge still counts it, and it will still appear in checkout.
 
 ```ts
-// ❌ Current
+// ❌ Current — disconnected from real store
 const [cartItems, setCartItems] = useState<CartItem[]>(initialCartItems)
-const removeItem = (id: string) => { setCartItems(...) }
+const removeItem = (id: string) => {
+  setCartItems(cartItems.filter((item) => item.id !== id))
+}
 
 // ✅ Fix
+import { useCart } from "@/lib/store/cart"
 const { items: cartItems, removeItem } = useCart()
 ```
 
 ---
 
-### Missing 3 — Admin "Add Book" button is not wired to anything
-**File:** `app/admin/books/page.tsx`, line ~81
+### New Bug 4 — Header nav links go to non-existent pages
+**File:** `components/header.tsx`
 
-The `<Button>Add Book</Button>` renders with no `onClick` handler. There is no dialog, form, or mutation connected to it. Admins cannot create books from the UI even though `POST /api/books` and `POST /api/upload` both work server-side.
+Three nav items link to pages that don't exist in the app:
+- `/categories` — no such route
+- `/new-releases` — no such route  
+- `/free-books` — no such route
 
-**What needs doing:** Add a dialog with a form (title, author, description, price, genres, cover URL, file upload) that calls `POST /api/upload` then `POST /api/books`.
-
----
-
-### Missing 4 — No `app/checkout/success/page.tsx`
-**File:** `app/api/orders/route.ts`, line ~42
-
-The orders route passes this redirect URL to IntaSend:
-```
-/checkout/success?orderId=${order.id}
-```
-After payment completes, IntaSend sends the user to this URL — but the page doesn't exist. Users land on a 404 after successfully paying.
-
-**What needs doing:** Create `app/checkout/success/page.tsx` that reads the `orderId` query param, fetches the order status, shows a confirmation message, calls `clearCart()`, and links to My Library.
+These will all 404. They should either link to `/books` with appropriate filter params (e.g. `/books?isFree=true`) or be removed until the pages are built.
 
 ---
 
-### Missing 5 — Free books go through IntaSend payment flow
-**File:** `app/api/orders/route.ts`
-
-When a cart contains only free books (`isFree: true`, `price: 0`), the route still calls `intasend.collection().charge()` with `amount: 0`. This is likely to either fail or produce an unnecessary IntaSend transaction. Free books should bypass payment entirely and have `Download` records created immediately.
-
-**What needs doing:** Add a branch in the orders route:
-
-```ts
-const total = books.reduce((sum, b) => sum + Number(b.price), 0)
-
-if (total === 0) {
-  // All books are free — skip IntaSend, grant access directly
-  const order = await prisma.order.create({
-    data: {
-      userId: session.user.id!,
-      totalAmount: 0,
-      status: 'PAID',
-      items: { create: books.map(b => ({ bookId: b.id, price: 0 })) }
-    }
-  })
-  await prisma.download.createMany({
-    data: books.map(b => ({ userId: session.user.id!, bookId: b.id })),
-    skipDuplicates: true,
-  })
-  return NextResponse.json({ orderId: order.id, free: true })
-}
-
-// ... existing IntaSend flow for paid books
-```
-
----
-
-## 🔵 Minor Issues & Polish
-
----
-
-### Minor 1 — `featured-books.tsx` still uses mock data
-**File:** `components/books/featured-books.tsx`
-
-The homepage "Featured Books" section and the "You might also like" section on book detail pages still render from a hardcoded array. They also use `console.log` for the cart add handler instead of the Zustand store. This means the homepage never shows real books from the database.
-
-**Fix:** Replace the mock array with a `useQuery` call to `GET /api/books?limit=8`, and wire `onAddToCart` to `useCart().addItem`.
-
----
-
-### Minor 2 — `admin/books/page.tsx` uses `<Link>` without importing it
-**File:** `app/admin/books/page.tsx`
-
-The View dropdown item wraps `<DropdownMenuItem>` in a `<Link>` component, but `Link` from `next/link` is not in the import list at the top of the file. This is a compile error.
+### New Bug 5 — Login page links to `/forgot-password` which doesn't exist
+**File:** `app/login/page.tsx`
 
 ```tsx
-// ❌ Missing import
-import Link from "next/link"
+<Link href="/forgot-password" className="text-sm text-primary hover:underline">
+  Forgot password?
+</Link>
+```
+
+There is no `app/forgot-password/page.tsx`. Clicking this throws a 404. Either remove the link or build a password reset flow.
+
+---
+
+### New Bug 6 — `DELETE /api/books/[id]` does not clean up related records
+**File:** `app/api/books/[id]/route.ts`
+
+The delete handler calls `prisma.book.delete()` directly. The `Book` model has three child relations: `OrderItem`, `Download`, and `Review`. Without cascading deletes configured in the Prisma schema, this will throw a foreign key constraint error whenever a book has been purchased (has orders/downloads) or reviewed.
+
+```prisma
+// ❌ Current schema has no onDelete cascade on Book's relations
+orderItems    OrderItem[]
+downloads     Download[]
+reviews       Review[]
+
+// ✅ Fix option 1 — add cascade delete to schema
+model OrderItem {
+  book    Book    @relation(fields: [bookId], references: [id], onDelete: Cascade)
+}
+model Download {
+  book    Book    @relation(fields: [bookId], references: [id], onDelete: Cascade)
+}
+model Review {
+  book    Book    @relation(fields: [bookId], references: [id], onDelete: Cascade)
+}
+
+// ✅ Fix option 2 — delete in a transaction in the route
+await prisma.$transaction([
+  prisma.review.deleteMany({ where: { bookId: params.id } }),
+  prisma.download.deleteMany({ where: { bookId: params.id } }),
+  prisma.orderItem.deleteMany({ where: { bookId: params.id } }),
+  prisma.book.delete({ where: { id: params.id } }),
+])
 ```
 
 ---
 
-### Minor 3 — Register page UI says minimum 8 characters, Zod validates minimum 6
-**File:** `app/register/page.tsx` (UI hint) vs `lib/validations/index.ts`
+### New Bug 7 — `intasend` is initialized with wrong sandbox flag
+**File:** `lib/intasend.ts`
 
-The UI displays "Must be at least 8 characters" but Zod allows passwords from 6 characters. A user entering a 6- or 7-character password will pass validation but see the hint implying their password is too short.
+```ts
+export const intasend = new IntaSend(
+  process.env.INTASEND_PUBLISHABLE_KEY!,
+  process.env.INTASEND_SECRET_KEY!,
+  process.env.NODE_ENV !== 'production'   // ← third param is isTest
+)
+```
 
-**Fix:** Make both consistent — either change Zod to `min(8)` or change the UI hint to "at least 6 characters".
+This means in development (`NODE_ENV=development`), `isTest=true` which is correct. But in production, `isTest=false` which is also what you want — so this logic is technically correct. However, it means there is no way to run a test/staging environment in "production" mode without hitting live IntaSend. Consider using a dedicated `INTASEND_TEST_MODE=true` env var for more explicit control.
+
+This is a minor concern, not a crash bug, but worth noting for staging environments.
 
 ---
 
-### Minor 4 — Webhook has no signature verification (security risk)
-**File:** `app/api/webhooks/intasend/route.ts`
+### New Bug 8 — `app/orders/[id]/route.ts` uses `params.id` directly (Next.js 15 async params warning)
+**File:** `app/api/orders/[id]/route.ts`  
+Also affects: `app/api/books/[id]/route.ts`, `app/api/downloads/[bookId]/route.ts`
 
-The webhook endpoint accepts any POST request and processes it as a valid payment. There is no verification that the request actually came from IntaSend. Anyone who discovers the URL can hit it with a fake payload to mark any order as PAID and unlock downloads without paying.
+In Next.js 15, route params are `Promise`-based and must be awaited. The current code accesses `params.id` synchronously, which will produce a warning and may break in strict mode or future Next.js versions.
 
-**Fix:** Verify the IntaSend webhook signature using `INTASEND_WEBHOOK_SECRET` before processing the payload. Refer to IntaSend's webhook verification documentation.
+```ts
+// ❌ Current — synchronous params access
+export async function GET(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  const order = await prisma.order.findUnique({ where: { id: params.id } })
+
+// ✅ Fix — await params
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const order = await prisma.order.findUnique({ where: { id } })
+```
+
+This applies to all dynamic route handlers: `[id]` and `[bookId]`.
 
 ---
 
-### Minor 5 — No `.env.example` file committed
-**Status:** File not present in the repo
+### New Bug 9 — `my-library/page.tsx` renders `book.coverUrl` without a fallback (potential crash)
+**File:** `app/my-library/page.tsx`
 
-Any developer cloning this project has no reference for what environment variables are needed. The app will fail silently in various places (R2 uploads return `undefined` URLs, IntaSend throws, database won't connect).
+The grid and list views both render:
+```tsx
+<Image src={book.coverUrl} alt={book.title} fill ... />
+```
 
-**Fix:** Create `.env.example` at the project root with all required keys and empty values:
+`coverUrl` is defined as `String?` (nullable) in the Prisma schema. If any book has no cover image, `src` will be `null` or `undefined`, which causes Next.js `<Image>` to throw. Other pages (books list, book detail, admin books) all handle this with a fallback. My Library doesn't.
 
-```env
-DATABASE_URL=
-NEXTAUTH_SECRET=
-NEXTAUTH_URL=http://localhost:3000
-R2_ACCOUNT_ID=
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_BUCKET_NAME=
-R2_PUBLIC_URL=
-INTASEND_PUBLISHABLE_KEY=
-INTASEND_SECRET_KEY=
-INTASEND_WEBHOOK_SECRET=
+```tsx
+// ✅ Fix
+<Image
+  src={book.coverUrl || "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=600&fit=crop"}
+  alt={book.title}
+  fill
+  className="object-cover"
+/>
 ```
 
 ---
 
-### Minor 6 — `next.config.mjs` has `ignoreBuildErrors: true`
-**File:** `next.config.mjs`
+### New Bug 10 — Checkout does not clear the cart after a successful redirect
+**File:** `app/checkout/page.tsx`
 
-TypeScript build errors are silently ignored. This means bugs that would normally be caught at build time (wrong field names, missing types) will only surface at runtime in production. Fine for rapid development, but should be turned off before deploying.
+When `handleCheckout` succeeds, the user is redirected to IntaSend's hosted page via `window.location.href = data.url`. The cart is never cleared. After the user completes payment and returns, their cart still contains the purchased items. `clearCart()` should be called either here before redirect, or inside `checkout/success/page.tsx` once the order is confirmed.
 
-```js
-// ❌ Current — hides real errors
-typescript: {
-  ignoreBuildErrors: true,
-},
+```ts
+// ✅ Fix — call clearCart before redirect
+const clearCart = useCart((state) => state.clearCart)
 
-// ✅ For production build, remove this block entirely
+// in handleCheckout, after getting data.url:
+if (data.url) {
+  clearCart()
+  window.location.href = data.url
+}
 ```
 
 ---
 
-## Fix Priority Order
+### New Bug 11 — `app/books/[id]/page.tsx` shows "Add to Cart" for books already in the cart
+**File:** `app/books/[id]/page.tsx`
 
-| # | File | Severity | Description |
-|---|---|---|---|
-| 1 | `prisma/schema.prisma` | 🔴 Blocker | Add `url = env("DATABASE_URL")` |
-| 2 | `app/layout.tsx` | 🔴 Blocker | Add `<SessionProvider>` |
-| 3 | `app/api/admin/stats/route.ts` | 🔴 Crash | `amount` → `totalAmount` (×2) |
-| 4 | `app/api/admin/orders/route.ts` | 🔴 Crash | `amount` → `totalAmount` |
-| 5 | `prisma/seed.ts` | 🔴 Crash | `password` → `passwordHash`, fix upsert key, remove unknown fields |
-| 6 | `app/api/books/route.ts` | 🔴 Crash | Map `bookSchema` fields to correct Prisma model shape |
-| 7 | `lib/validations/index.ts` | 🔴 Crash | Fix `bookSchema` to replace `fileUrl`/`fileFormat`/`pages` with `fileKey`/`pageCount` |
-| 8 | `app/admin/page.tsx` | 🔴 Build error | Add `"use client"` directive |
-| 9 | `app/admin/books/page.tsx` | 🔴 Build error | Add `import Link from "next/link"` |
-| 10 | `app/my-library/page.tsx` | 🟠 Broken feature | Fix download handler → `GET /api/downloads/${id}`, check `data.url` |
-| 11 | `app/my-library/page.tsx` | 🟠 Broken feature | Fix query → new `GET /api/my-library` route |
-| 12 | `app/cart/page.tsx` | 🟠 Broken feature | Replace mock array with `useCart()` Zustand store |
-| 13 | `app/api/upload/route.ts` | 🟠 Broken feature | `R2_CUSTOM_DOMAIN` → `R2_PUBLIC_URL` |
-| 14 | `app/orders/page.tsx` | 🟠 Broken feature | Replace mock data + add `GET /api/orders` user route |
-| 15 | `app/checkout/success/page.tsx` | 🟠 Missing page | Create post-payment confirmation page |
-| 16 | `app/api/orders/route.ts` | 🟡 Logic error | Add free books bypass (skip IntaSend when total = 0) |
-| 17 | `components/books/featured-books.tsx` | 🟡 Mock data | Replace hardcoded array with real API call |
-| 18 | `app/api/webhooks/intasend/route.ts` | 🟡 Security | Add signature verification |
-| 19 | `.env.example` | 🟡 DX | Create with all required keys |
-| 20 | `app/register/page.tsx` | 🟢 Minor | Align password hint with Zod min (6 vs 8) |
-| 21 | `next.config.mjs` | 🟢 Minor | Remove `ignoreBuildErrors` before going to production |
-| 22 | `app/admin/books/page.tsx` | 🟠 Missing | Wire "Add Book" button to dialog + form |
+The Add to Cart button has no awareness of whether the item is already in the cart. Clicking it repeatedly adds nothing (the store deduplicates by id) but the button label never changes to "In Cart" or "Go to Cart", leaving users confused about whether it worked.
+
+```ts
+// ✅ Fix
+const items = useCart((state) => state.items)
+const isInCart = items.some(i => i.id === book.id)
+
+// In the button:
+<Button size="lg" className="gap-2" onClick={isInCart ? () => router.push('/cart') : handleAddToCart}>
+  <ShoppingCart className="h-5 w-5" />
+  {isInCart ? "Go to Cart" : "Add to Cart"}
+</Button>
+```
 
 ---
 
-*Audited against `reqs/prd.md` — Digital Library Management System.*
+## Complete Priority List (All Issues)
+
+| Priority | File | Description |
+|---|---|---|
+| 🔴 | `prisma/schema.prisma` | Add `url = env("DATABASE_URL")` to datasource block |
+| 🔴 | `app/layout.tsx` | Add `<SessionProvider>` wrapping children |
+| 🔴 | `app/api/admin/stats/route.ts` | `amount` → `totalAmount` in aggregate and recentOrders map |
+| 🔴 | `app/api/admin/orders/route.ts` | `order.amount` → `order.totalAmount` |
+| 🔴 | `prisma/seed.ts` | `password` → `passwordHash`; use `isbn` as upsert key; add `fileKey`; remove `fileFormat`; `language: "en"` |
+| 🔴 | `app/api/books/route.ts` + `lib/validations/index.ts` | Fix `bookSchema` → Prisma field mapping (`fileKey`, `pageCount`); remove `fileUrl`, `fileFormat`, `pages` |
+| 🔴 | `app/admin/page.tsx` | Add `"use client"` as first line |
+| 🔴 | `app/admin/books/page.tsx` | Add `import Link from "next/link"` |
+| 🔴 | `app/api/books/[id]/route.ts` | Add cascade delete or transaction before `book.delete()` |
+| 🟠 | `app/my-library/page.tsx` | Fix download: `GET /api/downloads/${id}` + check `data.url` |
+| 🟠 | `app/my-library/page.tsx` | Fix query: create `GET /api/my-library` returning user's purchased books |
+| 🟠 | `app/my-library/page.tsx` | Add `coverUrl` fallback to `<Image>` |
+| 🟠 | `app/cart/page.tsx` | Replace mock `useState` with `useCart()` from Zustand store |
+| 🟠 | `app/api/upload/route.ts` | `R2_CUSTOM_DOMAIN` → `R2_PUBLIC_URL` |
+| 🟠 | `app/orders/page.tsx` | Replace mock data; add `GET /api/orders` (user's own orders list) |
+| 🟠 | `app/checkout/success/page.tsx` | Create this page — IntaSend redirects here after payment |
+| 🟠 | `app/api/orders/route.ts` | Add free books bypass (skip IntaSend when total = 0, grant downloads directly) |
+| 🟠 | `app/checkout/page.tsx` | Pass `phoneNumber` to API; validate it's present when M-Pesa selected |
+| 🟠 | `app/checkout/page.tsx` | Call `clearCart()` before redirecting to IntaSend |
+| 🟠 | `app/checkout/page.tsx` | Remove/disable card payment fields — they collect data but do nothing |
+| 🟡 | `components/books/featured-books.tsx` | Replace hardcoded array with `useQuery → GET /api/books` |
+| 🟡 | `app/api/webhooks/intasend/route.ts` | Add HMAC signature verification |
+| 🟡 | `components/header.tsx` | Fix nav links `/categories`, `/new-releases`, `/free-books` (404s) |
+| 🟡 | `app/login/page.tsx` | Remove or build `/forgot-password` link |
+| 🟡 | `app/books/[id]/page.tsx` | Show "In Cart" / "Go to Cart" when book already added |
+| 🟡 | All dynamic API routes (`[id]`, `[bookId]`) | Await `params` for Next.js 15 compatibility |
+| 🟢 | `.env.example` | Create with all required env var keys |
+| 🟢 | `app/register/page.tsx` | Align "8 characters" hint with Zod `min(6)` |
+| 🟢 | `next.config.mjs` | Remove `ignoreBuildErrors: true` before production |
