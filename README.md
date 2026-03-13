@@ -35,7 +35,7 @@ Kitabu is a modern, premium digital bookstore and library management system desi
 
 1. **Clone the repository**:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Elvinoacer/lib_management_system_mini.git
    cd lib_management_system_mini
    ```
 
