@@ -123,7 +123,7 @@ export default function RegisterPage() {
               {isLoading ? "Creating account..." : "Create account"}
             </Button>
 
-            <p className="text-center text-sm text-muted-foreground">
+            <p className="text-center text-sm text-muted-foreground mt-4">
               By signing up, you agree to our{" "}
               <Link href="/terms" className="text-primary hover:underline">
                 Terms of Service

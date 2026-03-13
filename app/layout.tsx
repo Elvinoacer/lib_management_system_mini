@@ -5,6 +5,7 @@ import './globals.css'
 import QueryProvider from '@/components/providers/QueryProvider'
 import AuthProvider from '@/components/providers/AuthProvider'
 import { Toaster } from 'sonner'
+import { SessionProvider } from 'next-auth/react'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -40,12 +41,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        <AuthProvider>
-          <QueryProvider>
-            {children}
-            <Toaster position="top-center" richColors />
-          </QueryProvider>
-        </AuthProvider>
+        <SessionProvider>
+          <AuthProvider>
+            <QueryProvider>
+              {children}
+              <Toaster position="top-center" richColors />
+            </QueryProvider>
+          </AuthProvider>
+        </SessionProvider>
         <Analytics />
       </body>
     </html>

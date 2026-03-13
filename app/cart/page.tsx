@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Header } from "@/components/header"
@@ -8,43 +7,12 @@ import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from "lucide-react"
 
-interface CartItem {
-  id: string
-  title: string
-  author: string
-  coverUrl: string
-  price: number
-  quantity: number
-}
-
-// Mock cart data
-const initialCartItems: CartItem[] = [
-  {
-    id: "1",
-    title: "The Art of Business Strategy",
-    author: "James Kimani",
-    coverUrl: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=600&fit=crop",
-    price: 1500,
-    quantity: 1,
-  },
-  {
-    id: "2",
-    title: "Modern Web Development",
-    author: "Sarah Ochieng",
-    coverUrl: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=400&h=600&fit=crop",
-    price: 2000,
-    quantity: 1,
-  },
-]
+import { useCart } from "@/lib/store/cart"
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState<CartItem[]>(initialCartItems)
+  const { items, removeItem, total: getTotal } = useCart()
 
-  const removeItem = (id: string) => {
-    setCartItems(cartItems.filter((item) => item.id !== id))
-  }
-
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const subtotal = getTotal()
   const discount = 0
   const total = subtotal - discount
 
@@ -55,15 +23,15 @@ export default function CartPage() {
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <h1 className="text-3xl font-bold text-foreground">Shopping Cart</h1>
           <p className="mt-2 text-muted-foreground">
-            {cartItems.length} {cartItems.length === 1 ? "item" : "items"} in your cart
+            {items.length} {items.length === 1 ? "item" : "items"} in your cart
           </p>
 
-          {cartItems.length > 0 ? (
+          {items.length > 0 ? (
             <div className="mt-8 grid gap-8 lg:grid-cols-3">
               {/* Cart Items */}
               <div className="lg:col-span-2">
                 <div className="flex flex-col gap-4">
-                  {cartItems.map((item) => (
+                  {items.map((item) => (
                     <div
                       key={item.id}
                       className="flex gap-4 rounded-lg border border-border bg-card p-4"
@@ -74,7 +42,7 @@ export default function CartPage() {
                         className="relative h-32 w-24 shrink-0 overflow-hidden rounded-md bg-secondary"
                       >
                         <Image
-                          src={item.coverUrl}
+                          src={item.coverUrl || "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=600&fit=crop"}
                           alt={item.title}
                           fill
                           className="object-cover"
@@ -94,7 +62,7 @@ export default function CartPage() {
                             <p className="text-sm text-muted-foreground">{item.author}</p>
                           </div>
                           <p className="text-lg font-bold text-foreground">
-                            KES {item.price.toLocaleString()}
+                            KES {Number(item.price).toLocaleString()}
                           </p>
                         </div>
 

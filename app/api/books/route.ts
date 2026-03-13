@@ -50,9 +50,9 @@ export async function POST(req: Request) {
         isFree: validatedData.isFree,
         coverUrl: validatedData.coverUrl || null,
         genres: validatedData.genres,
-        language: validatedData.language,
-        pageCount: validatedData.pages || null,
-        fileKey: "pending-upload", // Should be updated after actual upload or handled by client
+        language: validatedData.language || "en",
+        pageCount: validatedData.pageCount || null,
+        fileKey: validatedData.fileKey || "pending-upload",
       },
     })
 

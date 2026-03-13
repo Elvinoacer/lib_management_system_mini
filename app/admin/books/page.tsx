@@ -1,5 +1,11 @@
 "use client"
 
+import { useState } from "react"
+import Link from "next/link"
+import Image from "next/image"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { Search, Plus, MoreHorizontal, Pencil, Trash2, Eye, Loader2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -12,6 +18,12 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuContent } from "@/components/ui/dropdown-menu"
+import { AdminSidebar } from "@/components/admin/sidebar"
+import { AdminHeader } from "@/components/admin/header"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 
 export default function AdminBooksPage() {
   const [searchQuery, setSearchQuery] = useState("")

@@ -7,11 +7,10 @@ export const bookSchema = z.object({
   price: z.number().min(0),
   isFree: z.boolean().default(false),
   coverUrl: z.string().url().optional().or(z.literal("")),
-  fileUrl: z.string().url().optional().or(z.literal("")),
-  fileFormat: z.string().default("PDF"),
+  fileKey: z.string().min(1, "File key is required"),
   genres: z.array(z.string()).min(1, "At least one genre is required"),
-  language: z.string().default("English"),
-  pages: z.number().optional(),
+  language: z.string().default("en"),
+  pageCount: z.number().optional(),
 })
 
 export const registerSchema = z.object({

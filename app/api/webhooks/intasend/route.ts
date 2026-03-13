@@ -9,10 +9,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing signature" }, { status: 401 })
     }
 
-    // TODO: Implement actual signature verification with INTASEND_WEBHOOK_SECRET
-    // const hmac = crypto.createHmac('sha256', process.env.INTASEND_WEBHOOK_SECRET!)
+    const payloadText = await req.text()
     
-    const payload = await req.json()
+    // Verify signature if we have a secret and we're in production (or if signature is present in dev)
+    if (process.env.INTASEND_WEBHOOK_SECRET && signature) {
+      const hmac = crypto.createHmac('sha256', process.env.INTASEND_WEBHOOK_SECRET)
+      hmac.update(payloadText)
+      const calculatedSignature = hmac.digest('hex')
+      
+      if (calculatedSignature !== signature) {
+        return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
+      }
+    }
+
+    const payload = JSON.parse(payloadText)
 
     // IntaSend Webhook Payload Structure:
     // {

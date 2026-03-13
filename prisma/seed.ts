@@ -23,37 +23,37 @@ async function main() {
   // Sample Books
   const books = [
     {
+      isbn: "978-1-23-456789-0",
       title: "The Art of Business Strategy",
       author: "James Kimani",
       description: "A comprehensive guide to modern business strategy in the African context.",
       price: 1500,
       isFree: false,
       coverUrl: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=600&fit=crop",
-      fileFormat: "PDF, EPUB",
       genres: ["Business", "Strategy"],
-      language: "English",
+      language: "en",
     },
     {
+      isbn: "978-0-98-765432-1",
       title: "Modern Web Development",
       author: "Sarah Ochieng",
       description: "Mastering Next.js, React, and TypeSript for full-stack excellence.",
       price: 2000,
       isFree: false,
       coverUrl: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=400&h=600&fit=crop",
-      fileFormat: "PDF, EPUB",
       genres: ["Technology", "Programming"],
-      language: "English",
+      language: "en",
     },
     {
+      isbn: "978-3-16-148410-0",
       title: "Mindful Leadership",
       author: "David Mwangi",
       description: "Leading with impact and empathy in a fast-paced world.",
       price: 0,
       isFree: true,
       coverUrl: "https://images.unsplash.com/photo-1456324504439-367cee3b3c32?w=400&h=600&fit=crop",
-      fileFormat: "PDF",
       genres: ["Self-Help", "Leadership"],
-      language: "English",
+      language: "en",
     },
   ]
 

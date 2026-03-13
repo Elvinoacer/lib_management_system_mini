@@ -27,68 +27,6 @@ interface Order {
   items: OrderItem[]
 }
 
-// Mock orders data
-const orders: Order[] = [
-  {
-    id: "1",
-    orderNumber: "ORD-2024-001",
-    date: "February 20, 2024",
-    status: "PAID",
-    total: 3500,
-    paymentMethod: "M-Pesa",
-    items: [
-      {
-        id: "1",
-        title: "The Art of Business Strategy",
-        author: "James Kimani",
-        coverUrl: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=600&fit=crop",
-        price: 1500,
-      },
-      {
-        id: "2",
-        title: "Modern Web Development",
-        author: "Sarah Ochieng",
-        coverUrl: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=400&h=600&fit=crop",
-        price: 2000,
-      },
-    ],
-  },
-  {
-    id: "2",
-    orderNumber: "ORD-2024-002",
-    date: "February 15, 2024",
-    status: "PAID",
-    total: 0,
-    paymentMethod: "Free",
-    items: [
-      {
-        id: "3",
-        title: "Mindful Leadership",
-        author: "David Mwangi",
-        coverUrl: "https://images.unsplash.com/photo-1456324504439-367cee3b3c32?w=400&h=600&fit=crop",
-        price: 0,
-      },
-    ],
-  },
-  {
-    id: "3",
-    orderNumber: "ORD-2024-003",
-    date: "February 10, 2024",
-    status: "PAID",
-    total: 0,
-    paymentMethod: "Free",
-    items: [
-      {
-        id: "7",
-        title: "Introduction to AI",
-        author: "Kevin Otieno",
-        coverUrl: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&h=600&fit=crop",
-        price: 0,
-      },
-    ],
-  },
-]
-
 const statusColors = {
   PAID: "bg-primary/10 text-primary",
   PENDING: "bg-yellow-500/10 text-yellow-500",
