@@ -361,14 +361,14 @@ No confirmation dialog, no API call, no `onClick`. Users expecting GDPR/data del
 
 ---
 
-### F-8: 🟡 No Route-Level Auth Protection (Missing `middleware.ts`)
+### F-8: 🟡 No Route-Level Auth Protection (Missing `proxy.ts`)
 
-There is no `middleware.ts` file in this version. All auth checks happen client-side via `useSession()` in each page component. This means:
+There is no `proxy.ts` file in this version. All auth checks happen client-side via `useSession()` in each page component. This means:
 - The HTML/SSR content of protected pages (`/admin/*`, `/profile`, `/settings`, `/orders`) is served to unauthenticated requests before the client redirects
 - Search engine crawlers and bots can potentially access protected page structures
 - Users can briefly see protected page layouts before the auth redirect fires
 
-**Proposed strategy:** Create `middleware.ts` using NextAuth's built-in middleware:
+**Proposed strategy:** Create `proxy.ts` using NextAuth's built-in middleware:
 ```ts
 import NextAuth from 'next-auth'
 import { authConfig } from './lib/auth.config'
@@ -426,7 +426,7 @@ export const config = {
 | F-5 | Bad Flow | 🟡 Medium | `app/books/page.tsx` | Search fires API call on every keystroke — no debounce |
 | F-6 | Bad Flow | 🟡 Medium | `app/books/[id]/page.tsx` | Wishlist is ephemeral state — lost on refresh |
 | F-7 | Bad Flow | 🟡 Medium | `app/settings/page.tsx` | Delete Account button does nothing |
-| F-8 | Security | 🔴 Critical | missing `middleware.ts` | No server-side route protection — all auth is client-only |
+| F-8 | Security | 🔴 Critical | missing `proxy.ts` | No server-side route protection — all auth is client-only |
 
 ---
 
@@ -436,7 +436,7 @@ export const config = {
 1. **B-1** — Fix `api_ref` ordering bug in checkout — nothing gets paid until this is fixed
 2. **F-1** — Add polling timeout + cancel button to checkout
 3. **D-5** — Integrate real email provider for password reset
-4. **F-8** — Add `middleware.ts` for server-side route protection
+4. **F-8** — Add `proxy.ts` for server-side route protection
 5. **D-6** — Remove JWT secret fallback string
 
 ### 🟠 Fix Soon (Affects User Experience)

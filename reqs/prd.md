@@ -285,7 +285,7 @@ src/
 │   ├── books/SearchBar.tsx
 │   ├── cart/CartDrawer.tsx
 │   └── ui/                      # shadcn components
-└── middleware.ts                 # Route protection
+└── proxy.ts                 # Route protection
 ```
 
 ---
@@ -505,7 +505,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 })
 ```
 
-### 7.2 Middleware — Protect Routes (`middleware.ts`)
+### 7.2 Middleware — Protect Routes (`proxy.ts`)
 
 ```ts
 import { auth } from '@/lib/auth'
