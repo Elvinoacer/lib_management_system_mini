@@ -25,7 +25,7 @@ function VerifyEmailContent() {
             router.push("/books")
          } else {
             setStatus("resend")
-            setMessage("Please verify your email address to access your library and purchases. Check your inbox and spam folder.")
+            setMessage(`Please verify your email address (${session?.user?.email}) to access your library and purchases. Check your inbox and spam folder.`)
          }
       } else if (sessionStatus === "unauthenticated") {
         setStatus("error")
