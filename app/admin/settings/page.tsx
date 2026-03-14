@@ -84,7 +84,7 @@ export default function AdminSettingsPage() {
       <AdminSidebar />
       <div className="flex flex-1 flex-col">
         <AdminHeader />
-        <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-950">
+        <main className="flex-1 overflow-auto bg-background">
           <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
             <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Platform Settings</h1>
             <p className="mt-1 text-muted-foreground">

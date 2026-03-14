@@ -25,34 +25,34 @@ interface BookCardProps {
 
 export function BookCard({ book, onAddToCart }: BookCardProps) {
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5">
+    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-1 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10">
       {/* Cover Image */}
-      <Link href={`/books/${book.id}`} className="relative aspect-[3/4] overflow-hidden bg-secondary">
+      <Link href={`/books/${book.id}`} className="relative h-56 w-full overflow-hidden bg-secondary sm:h-64">
         <Image
           src={book.coverUrl}
           alt={book.title}
           fill
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
         {book.isFree && (
-          <Badge className="absolute left-2 top-2 bg-primary text-primary-foreground">
+          <Badge className="absolute left-3 top-3 bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground shadow-sm">
             Free
           </Badge>
         )}
       </Link>
 
       {/* Content */}
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex flex-wrap gap-1">
+      <div className="flex flex-1 flex-col gap-3 p-5">
+        <div className="flex flex-wrap gap-1.5">
           {book.genres.slice(0, 2).map((genre) => (
-            <Badge key={genre} variant="secondary" className="text-xs">
+            <Badge key={genre} variant="secondary" className="bg-secondary/50 text-[10px] sm:text-xs">
               {genre}
             </Badge>
           ))}
         </div>
 
         <Link href={`/books/${book.id}`}>
-          <h3 className="line-clamp-2 font-semibold text-card-foreground transition-colors group-hover:text-primary">
+          <h3 className="line-clamp-2 text-base font-bold leading-tight text-foreground transition-colors group-hover:text-primary sm:text-lg">
             {book.title}
           </h3>
         </Link>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 
 export default function AccountDeletedPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 py-12 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-md flex-col items-center justify-center text-center">
         <div className="mb-8 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
           <CheckCircle className="h-8 w-8 text-primary" />

@@ -29,7 +29,7 @@ export default function CategoriesPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 py-12 bg-slate-50 dark:bg-slate-950">
+      <main className="flex-1 py-12 bg-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-10">
             <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Browse Categories</h1>

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { Loader2, Camera, User } from "lucide-react"
+import { Loader2, Camera, User, Book } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 
 export default function ProfilePage() {
@@ -79,7 +79,7 @@ export default function ProfilePage() {
       <DashboardSidebar />
       <div className="flex flex-1 flex-col">
         <DashboardHeader />
-        <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-950">
+        <main className="flex-1 overflow-auto bg-background">
           <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
             <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Profile</h1>
             <p className="mt-1 text-muted-foreground">
@@ -90,20 +90,22 @@ export default function ProfilePage() {
               <div className="flex flex-col sm:flex-row gap-8">
                 {/* Avatar Section */}
                 <div className="flex flex-col items-center gap-4 border-b border-border sm:border-b-0 sm:border-r pb-8 sm:pb-0 sm:pr-8">
-                  <div className="relative h-24 w-24 rounded-full bg-secondary border flex items-center justify-center overflow-hidden">
+                  <div className="relative h-28 w-28 rounded-full bg-secondary border-4 border-background shadow-lg flex items-center justify-center overflow-hidden ring-2 ring-border transition-all hover:ring-primary/50">
                     {session?.user?.image ? (
                       <img src={session.user.image} alt="Avatar" className="h-full w-full object-cover" />
                     ) : (
-                      <User className="h-10 w-10 text-muted-foreground" />
+                      <User className="h-12 w-12 text-muted-foreground" />
                     )}
-                    <button className="absolute bottom-0 w-full bg-black/50 py-1 flex justify-center hover:bg-black/70 transition-colors">
-                      <Camera className="h-4 w-4 text-white" />
+                    <button className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                      <Camera className="h-6 w-6 text-white" />
                       <span className="sr-only">Upload profile photo</span>
                     </button>
                   </div>
                   <div className="text-center">
-                    <p className="font-medium text-foreground">{session?.user?.name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{session?.user?.role?.toLowerCase() || 'Member'}</p>
+                    <p className="font-semibold text-lg text-foreground">{session?.user?.name}</p>
+                    <div className="mt-1 inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary capitalize">
+                      {session?.user?.role?.toLowerCase() || 'Member'}
+                    </div>
                   </div>
                 </div>
 
@@ -144,18 +146,33 @@ export default function ProfilePage() {
 
             <div className="mt-8 bg-card border border-border rounded-xl p-6 sm:p-8 shadow-sm">
               <h2 className="text-xl font-bold text-foreground">Account Statistics</h2>
-              <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
-                  <p className="text-sm font-medium text-muted-foreground">Member Since</p>
-                  <p className="mt-1 text-2xl font-bold text-foreground">
-                    {profile?.createdAt ? new Date(profile.createdAt).getFullYear() : '...'}
-                  </p>
+              <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="group relative overflow-hidden rounded-2xl border border-border bg-gradient-to-b from-card to-secondary/20 p-6 transition-all hover:border-primary/50 hover:shadow-md">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <User className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Member Since</p>
+                      <p className="mt-1 text-2xl font-bold text-foreground">
+                        {profile?.createdAt ? new Date(profile.createdAt).getFullYear() : '...'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
-                  <p className="text-sm font-medium text-muted-foreground">Books Owned</p>
-                  <p className="mt-1 text-2xl font-bold text-foreground">
-                    {userBooks ? userBooks.length : '...'}
-                  </p>
+
+                <div className="group relative overflow-hidden rounded-2xl border border-border bg-gradient-to-b from-card to-secondary/20 p-6 transition-all hover:border-primary/50 hover:shadow-md">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <Book className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Books Owned</p>
+                      <p className="mt-1 text-2xl font-bold text-foreground">
+                        {userBooks ? userBooks.length : '...'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

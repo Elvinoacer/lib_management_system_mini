@@ -78,7 +78,7 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 py-12 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
       <div className="absolute top-8 left-8 hidden sm:flex items-center gap-2">
         <Link href="/">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
