@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import Link from "next/link"
-import { Book, Eye, EyeOff, Check } from "lucide-react"
+import { Book, Eye, EyeOff, Check, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,7 +11,7 @@ import { toast } from "sonner"
 import { useRouter, useSearchParams } from "next/navigation"
 import { signIn } from "next-auth/react"
 
-export default function RegisterPage() {
+function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
@@ -61,11 +61,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen">
-      {/* Left Side - Form */}
-      <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
-        <div className="mx-auto w-full max-w-sm lg:w-96">
-          {/* Logo */}
+    <div className="mx-auto w-full max-w-sm lg:w-96">
+      {/* Logo */}
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
               <Book className="h-6 w-6 text-primary-foreground" />
@@ -159,6 +156,17 @@ export default function RegisterPage() {
             </Link>
           </p>
         </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <div className="flex min-h-screen">
+      {/* Left Side - Form */}
+      <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
+        <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>}>
+          <RegisterForm />
+        </Suspense>
       </div>
 
       {/* Right Side - Benefits */}
