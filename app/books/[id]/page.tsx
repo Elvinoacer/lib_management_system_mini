@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
   ShoppingCart,
-  Heart,
   Share2,
   Star,
   BookOpen,
@@ -26,7 +25,6 @@ import { Loader2 } from "lucide-react"
 
 export default function BookDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const [isWishlisted, setIsWishlisted] = useState(false)
   const { data: book, isLoading, isError } = useQuery<any>({
     queryKey: ['book', id],
     queryFn: async () => {
@@ -225,7 +223,7 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Format</p>
-                  <p className="font-medium text-foreground">PDF, EPUB</p>
+                  <p className="font-medium text-foreground">Digital download</p>
                 </div>
               </div>
 

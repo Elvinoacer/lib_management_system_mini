@@ -279,6 +279,14 @@ export default function CheckoutPage() {
                     >
                       Cancel & Go Back
                     </Button>
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={handleCheckout}
+                    >
+                      Resend M-Pesa Push
+                    </Button>
                   </div>
                 )}
 
