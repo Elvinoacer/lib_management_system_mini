@@ -11,6 +11,8 @@ export async function GET(req: Request) {
 
     const page = Number(searchParams.get("page") || 1)
     const limit = Number(searchParams.get("limit") || 20)
+    const isFree = searchParams.get("isFree") === "true"
+    const sort = searchParams.get("sort")
 
     const books = await prisma.book.findMany({
       where: {
@@ -22,9 +24,10 @@ export async function GET(req: Request) {
             ]
           } : {},
           genre ? { genres: { has: genre } } : {},
+          isFree ? { isFree: true } : {},
         ]
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: sort === 'new' ? { createdAt: 'desc' } : { createdAt: 'desc' },
       take: limit,
       skip: (page - 1) * limit,
       select: {

@@ -242,10 +242,23 @@ export default function AdminUsersPage() {
                                     Remove Admin
                                   </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem className="gap-2 text-destructive">
-                                  <Ban className="h-4 w-4" />
-                                  Suspend User
-                                </DropdownMenuItem>
+                                {user.status === "Active" ? (
+                                  <DropdownMenuItem 
+                                    className="gap-2 text-destructive"
+                                    onClick={() => updateRoleMutation.mutate({ userId: user.id, role: user.role, isSuspended: true } as any)}
+                                  >
+                                    <Ban className="h-4 w-4" />
+                                    Suspend User
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem 
+                                    className="gap-2 text-primary"
+                                    onClick={() => updateRoleMutation.mutate({ userId: user.id, role: user.role, isSuspended: false } as any)}
+                                  >
+                                    <Shield className="h-4 w-4" />
+                                    Activate User
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </td>

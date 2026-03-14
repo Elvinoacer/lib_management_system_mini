@@ -11,12 +11,45 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { Loader2, BellRing, Lock, Trash2 } from "lucide-react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 
 export default function SettingsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const queryClient = useQueryClient()
   
   const [isChangingPassword, setIsChangingPassword] = useState(false)
+
+  // Fetch settings
+  const { data: settings } = useQuery({
+    queryKey: ['userSettings'],
+    queryFn: async () => {
+      const res = await fetch('/api/user/settings')
+      if (!res.ok) throw new Error("Failed to fetch settings")
+      return res.json()
+    },
+    enabled: status === 'authenticated'
+  })
+
+  // Update settings mutation
+  const updateSettings = useMutation({
+    mutationFn: async (newSettings: any) => {
+      const res = await fetch('/api/user/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettings),
+      })
+      if (!res.ok) throw new Error("Failed to update settings")
+      return res.json()
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['userSettings'], data)
+      toast.success("Preferences updated")
+    },
+    onError: () => {
+      toast.error("Failed to update preferences")
+    }
+  })
 
   if (status === "loading") return <div className="p-8 text-center flex h-screen items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
   if (status === "unauthenticated") {
@@ -28,12 +61,37 @@ export default function SettingsPage() {
     e.preventDefault()
     setIsChangingPassword(true)
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    toast.success("Password successfully updated")
-    setIsChangingPassword(false)
-    ;(e.target as HTMLFormElement).reset()
+    const form = e.target as HTMLFormElement
+    const currentPassword = (form.elements.namedItem('current-password') as HTMLInputElement).value
+    const newPassword = (form.elements.namedItem('new-password') as HTMLInputElement).value
+    const confirmPassword = (form.elements.namedItem('confirm-password') as HTMLInputElement).value
+
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match")
+      setIsChangingPassword(false)
+      return
+    }
+
+    try {
+      const res = await fetch('/api/user/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update password")
+      }
+      
+      toast.success("Password successfully updated")
+      form.reset()
+    } catch (error: any) {
+      toast.error(error.message)
+    } finally {
+      setIsChangingPassword(false)
+    }
   }
 
   return (
@@ -96,14 +154,22 @@ export default function SettingsPage() {
                       <p className="font-medium text-foreground">Order Updates</p>
                       <p className="text-sm text-muted-foreground">Receive emails about your purchases and downloads.</p>
                     </div>
-                    <Switch defaultChecked />
+                    <Switch 
+                      checked={settings?.orderUpdates ?? true} 
+                      onCheckedChange={(checked) => updateSettings.mutate({ orderUpdates: checked })}
+                      disabled={updateSettings.isPending || !settings}
+                    />
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium text-foreground">Promotional Emails</p>
                       <p className="text-sm text-muted-foreground">Receive updates about new book releases and discounts.</p>
                     </div>
-                    <Switch />
+                    <Switch 
+                      checked={settings?.promotionalEmails ?? false} 
+                      onCheckedChange={(checked) => updateSettings.mutate({ promotionalEmails: checked })}
+                      disabled={updateSettings.isPending || !settings}
+                    />
                   </div>
                 </div>
               </div>

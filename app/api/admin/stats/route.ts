@@ -35,6 +35,31 @@ export async function GET() {
       }
     })
 
+    const topBooksData = await prisma.orderItem.groupBy({
+      by: ['bookId'],
+      _sum: { price: true },
+      _count: { bookId: true },
+      orderBy: { _count: { bookId: 'desc' } },
+      take: 5
+    })
+
+    const bookIds = topBooksData.map(b => b.bookId)
+    const books = await prisma.book.findMany({
+      where: { id: { in: bookIds } },
+      select: { id: true, title: true, author: true, price: true }
+    })
+    
+    const topBooks = topBooksData.map(tb => {
+      const b = books.find(book => book.id === tb.bookId)
+      return {
+        id: b?.id,
+        title: b?.title,
+        author: b?.author,
+        sales: tb._count.bookId,
+        revenue: Number(tb._sum.price || 0)
+      }
+    })
+
     return NextResponse.json({
       stats: {
         revenue: Number(totalRevenue._sum.totalAmount || 0),
@@ -48,7 +73,8 @@ export async function GET() {
         amount: Number(o.totalAmount),
         status: o.status,
         date: o.createdAt.toLocaleDateString()
-      }))
+      })),
+      topBooks
     })
   } catch (error: any) {
     console.error("Admin stats error:", error)

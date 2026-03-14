@@ -14,13 +14,9 @@ export default function FreeBooksPage() {
   const { data: books = [], isLoading, isError } = useQuery<any[]>({
     queryKey: ['books', 'free'],
     queryFn: async () => {
-      // In a real API we would fetch with ?isFree=true
-      // The current backend might not support `isFree` filtering via query param directly yet
-      // but we can fetch all and filter in client if needed, or update API later.
-      const res = await fetch(`/api/books`)
+      const res = await fetch(`/api/books?isFree=true`)
       if (!res.ok) throw new Error("Failed to fetch")
-      const allBooks = await res.json()
-      return allBooks.filter((book: any) => Number(book.price) === 0)
+      return await res.json()
     }
   })
 

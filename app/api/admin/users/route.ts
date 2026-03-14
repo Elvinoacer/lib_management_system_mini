@@ -28,11 +28,16 @@ export async function GET(req: Request) {
         name: true,
         email: true,
         role: true,
+        isSuspended: true,
         createdAt: true,
         _count: {
           select: {
             orders: true
           }
+        },
+        orders: {
+          where: { status: "PAID" },
+          select: { totalAmount: true }
         }
       },
       orderBy: {
@@ -47,7 +52,8 @@ export async function GET(req: Request) {
       role: user.role,
       joinedDate: user.createdAt.toLocaleDateString(),
       purchases: user._count.orders,
-      status: "Active"
+      status: user.isSuspended ? "Suspended" : "Active",
+      totalSpent: user.orders.reduce((sum: number, o: any) => sum + Number(o.totalAmount), 0)
     }))
 
     return NextResponse.json(formattedUsers)
@@ -66,20 +72,29 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
 
-    const { userId, role } = await req.json()
+    const { userId, role, isSuspended } = await req.json()
 
-    if (!userId || !role) {
-      return NextResponse.json({ error: "Missing userId or role" }, { status: 400 })
+    if (!userId) {
+      return NextResponse.json({ error: "Missing userId" }, { status: 400 })
     }
 
-    const validRoles = ['ADMIN', 'MEMBER'] as const
-    if (!validRoles.includes(role)) {
-      return NextResponse.json({ error: "Invalid role" }, { status: 400 })
+    const data: any = {}
+    
+    if (role) {
+      const validRoles = ['ADMIN', 'MEMBER'] as const
+      if (!validRoles.includes(role)) {
+        return NextResponse.json({ error: "Invalid role" }, { status: 400 })
+      }
+      data.role = role
+    }
+
+    if (isSuspended !== undefined) {
+      data.isSuspended = isSuspended
     }
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { role }
+      data
     })
 
     return NextResponse.json(updatedUser)

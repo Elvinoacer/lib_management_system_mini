@@ -12,8 +12,11 @@ model User {
   name         String
   email        String     @unique
   passwordHash String
-  role         Role       @default(MEMBER)
-  createdAt    DateTime   @default(now())
+  role              Role       @default(MEMBER)
+  isSuspended       Boolean    @default(false)
+  orderUpdates      Boolean    @default(true)
+  promotionalEmails Boolean    @default(false)
+  createdAt         DateTime   @default(now())
   orders       Order[]
   downloads    Download[]
   reviews      Review[]
@@ -95,4 +98,14 @@ enum OrderStatus {
   PAID
   FAILED
   REFUNDED
+}
+
+model GlobalSettings {
+  id                  String   @id @default("default")
+  platformName        String   @default("Kitabu LMS")
+  supportEmail        String   @default("support@kitabu.com")
+  allowRegistrations  Boolean  @default(true)
+  intasendTestMode    Boolean  @default(true)
+  intasendPubKey      String?
+  updatedAt           DateTime @updatedAt
 }

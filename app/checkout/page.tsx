@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Header } from "@/components/header"
@@ -22,6 +22,7 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("mpesa")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
+  const [pollingOrder, setPollingOrder] = useState<string | null>(null)
   const { data: session, status } = useSession()
   const router = useRouter()
   
@@ -66,10 +67,12 @@ export default function CheckoutPage() {
         throw new Error(data.error || "Failed to initiate payment")
       }
 
-      // Redirect to IntaSend checkout URL
-      if (data.url) {
+      // Stay on page and poll for M-Pesa, redirect to IntaSend for others (or free)
+      if (data.url && paymentMethod !== "mpesa") {
         clearCart()
         window.location.href = data.url
+      } else if (data.orderId) {
+        setPollingOrder(data.orderId)
       } else {
         throw new Error("Invalid response from payment gateway")
       }
@@ -78,6 +81,37 @@ export default function CheckoutPage() {
       setIsProcessing(false)
     }
   }
+
+  // Polling logic
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout
+    const pollOrderStatus = async () => {
+      if (!pollingOrder) return
+      
+      try {
+        const res = await fetch(`/api/orders/${pollingOrder}`)
+        if (res.ok) {
+          const order = await res.json()
+          if (order.status === "PAID") {
+            toast.success("Payment received!")
+            router.push(`/checkout/success?orderId=${pollingOrder}`)
+            return // Stop polling
+          }
+        }
+      } catch (err) {
+        console.error("Polling error:", err)
+      }
+      
+      // Poll again after 3 seconds
+      timeoutId = setTimeout(pollOrderStatus, 3000)
+    }
+
+    if (pollingOrder) {
+      pollOrderStatus()
+    }
+    
+    return () => clearTimeout(timeoutId)
+  }, [pollingOrder, router])
 
   if (status === "loading") {
     return (
@@ -189,7 +223,10 @@ export default function CheckoutPage() {
                   disabled={isProcessing}
                 >
                   {isProcessing ? (
-                    <>Processing...</>
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {pollingOrder ? "Waiting for M-Pesa payment..." : "Processing..."}
+                    </>
                   ) : (
                     <>
                       <Lock className="h-4 w-4" />

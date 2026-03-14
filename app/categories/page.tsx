@@ -3,22 +3,29 @@
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import Link from "next/link"
-import { BookMarked, Cpu, Globe, HeartPulse, Lightbulb, Palette, TrendingUp, Users } from "lucide-react"
+import { BookMarked, Cpu, Globe, HeartPulse, Lightbulb, Palette, TrendingUp, Users, Loader2 } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
 
-// Ideally, this list would be generated dynamically from all unique genres in the DB.
-// Using a static representative list for the category browsing page.
-const categories = [
-  { name: "Business", slug: "Business", icon: <TrendingUp className="h-8 w-8 text-primary" />, count: "+" },
-  { name: "Technology", slug: "Technology", icon: <Cpu className="h-8 w-8 text-primary" />, count: "+" },
-  { name: "Science", slug: "Science", icon: <Globe className="h-8 w-8 text-primary" />, count: "+" },
-  { name: "Health & Wellness", slug: "Health & Wellness", icon: <HeartPulse className="h-8 w-8 text-primary" />, count: "+" },
-  { name: "Self-Help", slug: "Self-Help", icon: <Lightbulb className="h-8 w-8 text-primary" />, count: "+" },
-  { name: "Fiction", slug: "Fiction", icon: <BookMarked className="h-8 w-8 text-primary" />, count: "+" },
-  { name: "Arts & Photography", slug: "Arts & Photography", icon: <Palette className="h-8 w-8 text-primary" />, count: "+" },
-  { name: "Biographies", slug: "Biographies", icon: <Users className="h-8 w-8 text-primary" />, count: "+" },
-]
+const ICON_MAP: Record<string, any> = {
+  "Business": <TrendingUp className="h-8 w-8 text-primary" />,
+  "Technology": <Cpu className="h-8 w-8 text-primary" />,
+  "Science": <Globe className="h-8 w-8 text-primary" />,
+  "Health & Wellness": <HeartPulse className="h-8 w-8 text-primary" />,
+  "Self-Help": <Lightbulb className="h-8 w-8 text-primary" />,
+  "Fiction": <BookMarked className="h-8 w-8 text-primary" />,
+  "Arts & Photography": <Palette className="h-8 w-8 text-primary" />,
+  "Biographies": <Users className="h-8 w-8 text-primary" />,
+}
 
 export default function CategoriesPage() {
+  const { data: categories, isLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const res = await fetch('/api/categories')
+      if (!res.ok) throw new Error("Failed to fetch categories")
+      return res.json()
+    }
+  })
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -32,19 +39,29 @@ export default function CategoriesPage() {
           </div>
           
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {categories.map((category) => (
-              <Link key={category.slug} href={`/books?genre=${category.slug}`} className="group block">
-                <div className="flex h-full flex-col items-center justify-center rounded-xl border border-border bg-card p-8 text-center shadow-sm transition-all hover:shadow-md hover:border-primary/50">
-                  <div className="mb-4 rounded-full bg-primary/10 p-4 transition-transform group-hover:scale-110">
-                    {category.icon}
+            {isLoading ? (
+              <div className="col-span-full py-12 flex justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : categories?.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-muted-foreground">
+                No categories found.
+              </div>
+            ) : (
+              categories?.map((category: any) => (
+                <Link key={category.slug} href={`/books?genre=${category.slug}`} className="group block">
+                  <div className="flex h-full flex-col items-center justify-center rounded-xl border border-border bg-card p-8 text-center shadow-sm transition-all hover:shadow-md hover:border-primary/50">
+                    <div className="mb-4 rounded-full bg-primary/10 p-4 transition-transform group-hover:scale-110">
+                      {ICON_MAP[category.name] || <BookMarked className="h-8 w-8 text-primary" />}
+                    </div>
+                    <h3 className="text-xl font-semibold text-foreground">{category.name}</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {category.count} {category.count === 1 ? 'book' : 'books'}
+                    </p>
                   </div>
-                  <h3 className="text-xl font-semibold text-foreground">{category.name}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Discover books in {category.name}
-                  </p>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              ))
+            )}
           </div>
 
           <div className="mt-12 text-center">

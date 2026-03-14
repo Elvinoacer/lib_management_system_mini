@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { Book, BookOpen, Receipt, Settings, User, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { useSession, signOut } from "next-auth/react"
 
 const sidebarItems = [
   { label: "My Library", href: "/my-library", icon: BookOpen },
@@ -15,6 +16,7 @@ const sidebarItems = [
 
 export function DashboardSidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
 
   return (
     <aside className="hidden w-64 shrink-0 border-r border-border bg-card lg:block">
@@ -57,15 +59,19 @@ export function DashboardSidebar() {
         {/* User Section */}
         <div className="border-t border-border p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
-              <User className="h-5 w-5 text-muted-foreground" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary overflow-hidden">
+              {session?.user?.image ? (
+                <img src={session.user.image} alt={session.user.name || "User"} className="h-full w-full object-cover" />
+              ) : (
+                <User className="h-5 w-5 text-muted-foreground" />
+              )}
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-foreground">John Doe</p>
-              <p className="text-xs text-muted-foreground">john@example.com</p>
+            <div className="flex-1 overflow-hidden">
+              <p className="text-sm font-medium text-foreground truncate">{session?.user?.name || "Loading..."}</p>
+              <p className="text-xs text-muted-foreground truncate">{session?.user?.email || ""}</p>
             </div>
           </div>
-          <Button variant="ghost" className="mt-3 w-full justify-start gap-2 text-muted-foreground">
+          <Button variant="ghost" className="mt-3 w-full justify-start gap-2 text-muted-foreground" onClick={() => signOut({ callbackUrl: "/login" })}>
             <LogOut className="h-4 w-4" />
             Sign Out
           </Button>

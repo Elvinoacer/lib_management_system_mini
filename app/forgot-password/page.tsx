@@ -16,12 +16,25 @@ export default function ForgotPasswordPage() {
     e.preventDefault()
     setIsLoading(true)
     
-    // Simulate API call for forgot password
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    const form = e.target as HTMLFormElement
+    const email = (form.elements.namedItem('email') as HTMLInputElement).value
     
-    setIsLoading(false)
-    setIsSubmitted(true)
-    toast.success("Password reset instructions sent!")
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+
+      if (!res.ok) throw new Error("Failed to request password reset")
+
+      setIsSubmitted(true)
+      toast.success("Password reset instructions sent!")
+    } catch (error) {
+      toast.error("An error occurred. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (

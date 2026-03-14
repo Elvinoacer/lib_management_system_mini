@@ -14,13 +14,9 @@ export default function NewReleasesPage() {
   const { data: books = [], isLoading, isError } = useQuery<any[]>({
     queryKey: ['books', 'new-releases'],
     queryFn: async () => {
-      const res = await fetch(`/api/books`)
+      const res = await fetch(`/api/books?sort=new&limit=12`)
       if (!res.ok) throw new Error("Failed to fetch")
-      let allBooks = await res.json()
-      // Sort by creation date descending to simulate new releases
-      allBooks = allBooks.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      // Return top 12 newest
-      return allBooks.slice(0, 12)
+      return await res.json()
     }
   })
 

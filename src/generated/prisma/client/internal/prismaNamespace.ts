@@ -389,7 +389,8 @@ export const ModelName = {
   Order: 'Order',
   OrderItem: 'OrderItem',
   Download: 'Download',
-  Review: 'Review'
+  Review: 'Review',
+  GlobalSettings: 'GlobalSettings'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -405,7 +406,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "book" | "order" | "orderItem" | "download" | "review"
+    modelProps: "user" | "book" | "order" | "orderItem" | "download" | "review" | "globalSettings"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -853,6 +854,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    GlobalSettings: {
+      payload: Prisma.$GlobalSettingsPayload<ExtArgs>
+      fields: Prisma.GlobalSettingsFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.GlobalSettingsFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GlobalSettingsPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.GlobalSettingsFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GlobalSettingsPayload>
+        }
+        findFirst: {
+          args: Prisma.GlobalSettingsFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GlobalSettingsPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.GlobalSettingsFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GlobalSettingsPayload>
+        }
+        findMany: {
+          args: Prisma.GlobalSettingsFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GlobalSettingsPayload>[]
+        }
+        create: {
+          args: Prisma.GlobalSettingsCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GlobalSettingsPayload>
+        }
+        createMany: {
+          args: Prisma.GlobalSettingsCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.GlobalSettingsCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GlobalSettingsPayload>[]
+        }
+        delete: {
+          args: Prisma.GlobalSettingsDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GlobalSettingsPayload>
+        }
+        update: {
+          args: Prisma.GlobalSettingsUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GlobalSettingsPayload>
+        }
+        deleteMany: {
+          args: Prisma.GlobalSettingsDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.GlobalSettingsUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.GlobalSettingsUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GlobalSettingsPayload>[]
+        }
+        upsert: {
+          args: Prisma.GlobalSettingsUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GlobalSettingsPayload>
+        }
+        aggregate: {
+          args: Prisma.GlobalSettingsAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateGlobalSettings>
+        }
+        groupBy: {
+          args: Prisma.GlobalSettingsGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GlobalSettingsGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.GlobalSettingsCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GlobalSettingsCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -898,6 +973,9 @@ export const UserScalarFieldEnum = {
   email: 'email',
   passwordHash: 'passwordHash',
   role: 'role',
+  isSuspended: 'isSuspended',
+  orderUpdates: 'orderUpdates',
+  promotionalEmails: 'promotionalEmails',
   createdAt: 'createdAt'
 } as const
 
@@ -970,6 +1048,19 @@ export const ReviewScalarFieldEnum = {
 export type ReviewScalarFieldEnum = (typeof ReviewScalarFieldEnum)[keyof typeof ReviewScalarFieldEnum]
 
 
+export const GlobalSettingsScalarFieldEnum = {
+  id: 'id',
+  platformName: 'platformName',
+  supportEmail: 'supportEmail',
+  allowRegistrations: 'allowRegistrations',
+  intasendTestMode: 'intasendTestMode',
+  intasendPubKey: 'intasendPubKey',
+  updatedAt: 'updatedAt'
+} as const
+
+export type GlobalSettingsScalarFieldEnum = (typeof GlobalSettingsScalarFieldEnum)[keyof typeof GlobalSettingsScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -1029,6 +1120,13 @@ export type ListEnumRoleFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaM
 
 
 /**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+/**
  * Reference to a field of type 'DateTime'
  */
 export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
@@ -1053,13 +1151,6 @@ export type DecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel,
  * Reference to a field of type 'Decimal[]'
  */
 export type ListDecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal[]'>
-    
-
-
-/**
- * Reference to a field of type 'Boolean'
- */
-export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 
@@ -1205,6 +1296,7 @@ export type GlobalOmitConfig = {
   orderItem?: Prisma.OrderItemOmit
   download?: Prisma.DownloadOmit
   review?: Prisma.ReviewOmit
+  globalSettings?: Prisma.GlobalSettingsOmit
 }
 
 /* Types for Logging */

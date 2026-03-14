@@ -77,16 +77,22 @@ export async function POST(req: Request) {
     // Create IntaSend invoice/checkout for paid orders
     try {
       // First try to initiate payment with IntaSend
-      const checkout = await intasend.collection().charge({
+      const checkoutArgs: any = {
         first_name: session.user.name?.split(' ')[0] || 'User',
         last_name: session.user.name?.split(' ')[1] || 'Name',
         email: session.user.email,
-        phone_number: phoneNumber,
         amount: total,
         currency: 'KES',
         api_ref: `TEMP-${Date.now()}`, // Temporary reference
         redirect_url: `${process.env.NEXTAUTH_URL}/checkout/success`,
-      })
+      };
+
+      if (phoneNumber) {
+        checkoutArgs.phone_number = phoneNumber;
+        checkoutArgs.method = 'M-PESA';
+      }
+
+      const checkout = await intasend.collection().charge(checkoutArgs);
 
       // If successful, create the order in pending state
       const order = await prisma.order.create({

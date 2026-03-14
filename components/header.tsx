@@ -9,9 +9,9 @@ import { useSession, signOut } from "next-auth/react"
 
 const navItems = [
   { label: "Browse", href: "/books" },
-  { label: "Categories", href: "/books" },
-  { label: "New Releases", href: "/books?sort=new" },
-  { label: "Free Books", href: "/books?isFree=true" },
+  { label: "Categories", href: "/categories" },
+  { label: "New Releases", href: "/new-releases" },
+  { label: "Free Books", href: "/free-books" },
 ]
 
 export function Header() {

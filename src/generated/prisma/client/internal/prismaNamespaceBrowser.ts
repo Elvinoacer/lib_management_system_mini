@@ -56,7 +56,8 @@ export const ModelName = {
   Order: 'Order',
   OrderItem: 'OrderItem',
   Download: 'Download',
-  Review: 'Review'
+  Review: 'Review',
+  GlobalSettings: 'GlobalSettings'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -81,6 +82,9 @@ export const UserScalarFieldEnum = {
   email: 'email',
   passwordHash: 'passwordHash',
   role: 'role',
+  isSuspended: 'isSuspended',
+  orderUpdates: 'orderUpdates',
+  promotionalEmails: 'promotionalEmails',
   createdAt: 'createdAt'
 } as const
 
@@ -151,6 +155,19 @@ export const ReviewScalarFieldEnum = {
 } as const
 
 export type ReviewScalarFieldEnum = (typeof ReviewScalarFieldEnum)[keyof typeof ReviewScalarFieldEnum]
+
+
+export const GlobalSettingsScalarFieldEnum = {
+  id: 'id',
+  platformName: 'platformName',
+  supportEmail: 'supportEmail',
+  allowRegistrations: 'allowRegistrations',
+  intasendTestMode: 'intasendTestMode',
+  intasendPubKey: 'intasendPubKey',
+  updatedAt: 'updatedAt'
+} as const
+
+export type GlobalSettingsScalarFieldEnum = (typeof GlobalSettingsScalarFieldEnum)[keyof typeof GlobalSettingsScalarFieldEnum]
 
 
 export const SortOrder = {

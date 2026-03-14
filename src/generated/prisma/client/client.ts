@@ -71,3 +71,8 @@ export type Download = Prisma.DownloadModel
  * 
  */
 export type Review = Prisma.ReviewModel
+/**
+ * Model GlobalSettings
+ * 
+ */
+export type GlobalSettings = Prisma.GlobalSettingsModel

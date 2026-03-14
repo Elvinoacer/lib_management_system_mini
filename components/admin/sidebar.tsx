@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { Book, LayoutDashboard, BookOpen, Receipt, Users, Settings, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { useSession, signOut } from "next-auth/react"
 
 const sidebarItems = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -16,6 +17,7 @@ const sidebarItems = [
 
 export function AdminSidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
 
   return (
     <aside className="hidden w-64 shrink-0 border-r border-border bg-card lg:block">
@@ -63,20 +65,24 @@ export function AdminSidebar() {
         {/* User Section */}
         <div className="border-t border-border p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-              <span className="text-sm font-medium text-primary">AD</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 overflow-hidden">
+              {session?.user?.image ? (
+                <img src={session.user.image} alt={session.user.name || "Admin"} className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-sm font-medium text-primary">
+                  {session?.user?.name ? session.user.name.substring(0, 2).toUpperCase() : "AD"}
+                </span>
+              )}
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-foreground">Admin User</p>
-              <p className="text-xs text-muted-foreground">admin@kitabu.com</p>
+            <div className="flex-1 overflow-hidden">
+              <p className="text-sm font-medium text-foreground truncate">{session?.user?.name || "Loading..."}</p>
+              <p className="text-xs text-muted-foreground truncate">{session?.user?.email || ""}</p>
             </div>
           </div>
-          <Link href="/">
-            <Button variant="ghost" className="mt-3 w-full justify-start gap-2 text-muted-foreground">
-              <LogOut className="h-4 w-4" />
-              Exit Admin
-            </Button>
-          </Link>
+          <Button variant="ghost" className="mt-3 w-full justify-start gap-2 text-muted-foreground" onClick={() => signOut({ callbackUrl: "/login" })}>
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </Button>
         </div>
       </div>
     </aside>

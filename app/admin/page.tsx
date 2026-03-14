@@ -133,7 +133,30 @@ export default function AdminDashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-col gap-4">
-                    <p className="text-muted-foreground text-sm">Feature coming soon: Sales analytics by book.</p>
+                    {isLoading ? (
+                      <div className="flex justify-center py-4">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : data?.topBooks && data.topBooks.length > 0 ? (
+                      data.topBooks.map((book: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-foreground">{book.title}</p>
+                            <p className="text-sm text-muted-foreground">{book.author}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium text-foreground">
+                              KES {book.revenue.toLocaleString()}
+                            </p>
+                            <p className="text-sm text-muted-foreground font-medium">
+                              {book.sales} sold
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground text-sm">No sales data yet.</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>

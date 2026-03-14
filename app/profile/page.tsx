@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Loader2, Camera, User } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
 
 export default function ProfilePage() {
   const { data: session, update, status } = useSession()
@@ -19,6 +20,27 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     name: session?.user?.name || "",
     email: session?.user?.email || "",
+  })
+
+  // Queries for real stats
+  const { data: profile } = useQuery({
+    queryKey: ['profileInfo'],
+    queryFn: async () => {
+      const res = await fetch('/api/user/profile')
+      if (!res.ok) throw new Error("Failed to fetch")
+      return res.json()
+    },
+    enabled: status === 'authenticated'
+  })
+
+  const { data: userBooks } = useQuery({
+    queryKey: ['my-library'],
+    queryFn: async () => {
+      const res = await fetch('/api/my-library')
+      if (!res.ok) throw new Error("Failed to fetch")
+      return res.json()
+    },
+    enabled: status === 'authenticated'
   })
 
   // Basic redirection if not authed
@@ -32,12 +54,24 @@ export default function ProfilePage() {
     e.preventDefault()
     setIsSaving(true)
     
-    // Simulate API update for profile details
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    await update({ name: formData.name }) // NextAuth update trick
-    
-    toast.success("Profile updated successfully")
-    setIsSaving(false)
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: formData.name })
+      })
+
+      if (!res.ok) {
+        throw new Error("Failed to update profile")
+      }
+
+      await update({ name: formData.name }) // Update session data
+      toast.success("Profile updated successfully")
+    } catch (error) {
+      toast.error("An error occurred while saving your profile")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -113,11 +147,15 @@ export default function ProfilePage() {
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
                   <p className="text-sm font-medium text-muted-foreground">Member Since</p>
-                  <p className="mt-1 text-2xl font-bold text-foreground">2026</p>
+                  <p className="mt-1 text-2xl font-bold text-foreground">
+                    {profile?.createdAt ? new Date(profile.createdAt).getFullYear() : '...'}
+                  </p>
                 </div>
                 <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
                   <p className="text-sm font-medium text-muted-foreground">Books Owned</p>
-                  <p className="mt-1 text-2xl font-bold text-foreground">--</p>
+                  <p className="mt-1 text-2xl font-bold text-foreground">
+                    {userBooks ? userBooks.length : '...'}
+                  </p>
                 </div>
               </div>
             </div>
