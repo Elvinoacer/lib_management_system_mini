@@ -165,11 +165,11 @@ export default function AdminSettingsPage() {
                 <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="cloud-name">Cloud Name</Label>
-                    <Input id="cloud-name" defaultValue="your-cloud-name" disabled />
+                    <Input id="cloud-name" value={settings?.cloudinaryName || "Not configured"} disabled />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="api-key">API Key</Label>
-                    <Input id="api-key" type="password" defaultValue="8472947294" disabled />
+                    <Input id="api-key" type="text" value={settings?.cloudinaryKey || "Not configured"} disabled />
                   </div>
                   <div className="sm:col-span-2">
                     <p className="text-sm text-muted-foreground italic">Note: Storage configuration is currently managed via Environment Variables (.env) for security reasons.</p>

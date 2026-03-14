@@ -135,23 +135,23 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
                 <p className="mt-2 text-lg text-muted-foreground">by {book.author}</p>
               </div>
 
-              {/* Rating (Static for now as Review model is separate) */}
+              {/* Rating */}
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <Star
                       key={star}
                       className={`h-5 w-5 ${
-                        star <= 4
+                        star <= Math.round(book.rating || 0)
                           ? "fill-primary text-primary"
                           : "text-muted-foreground"
                       }`}
                     />
                   ))}
                 </div>
-                <span className="font-medium text-foreground">4.5</span>
+                <span className="font-medium text-foreground">{book.rating > 0 ? book.rating.toFixed(1) : "N/A"}</span>
                 <span className="text-muted-foreground">
-                  (12 reviews)
+                  ({book.reviewsCount || 0} reviews)
                 </span>
               </div>
 
@@ -164,7 +164,14 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  {isInCart ? (
+                  {book.isOwned ? (
+                    <Link href="/my-library" className="w-full">
+                      <Button size="lg" className="w-full gap-2">
+                        <Download className="h-5 w-5" />
+                        Download from Library
+                      </Button>
+                    </Link>
+                  ) : isInCart ? (
                     <Link href="/cart" className="w-full">
                       <Button size="lg" className="w-full gap-2">
                         <ShoppingCart className="h-5 w-5" />
@@ -178,17 +185,6 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
                     </Button>
                   )}
                   <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="flex-1 gap-2"
-                      onClick={() => setIsWishlisted(!isWishlisted)}
-                    >
-                      <Heart
-                        className={`h-5 w-5 ${isWishlisted ? "fill-primary text-primary" : ""}`}
-                      />
-                      {isWishlisted ? "Wishlisted" : "Wishlist"}
-                    </Button>
                     <Button variant="outline" size="lg" className="flex-1 gap-2">
                       <Share2 className="h-5 w-5" />
                       Share
@@ -204,7 +200,7 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Check className="h-4 w-4 text-primary" />
-                    Available in PDF & EPUB formats
+                    Digital download
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Check className="h-4 w-4 text-primary" />
@@ -250,10 +246,16 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
               {/* Reviews Section */}
               <div>
                 <h2 className="mb-4 text-xl font-semibold text-foreground">
-                  Reviews (0)
+                  Reviews ({book.reviewsCount || 0})
                 </h2>
                 <div className="flex flex-col gap-4">
-                  <p className="text-muted-foreground italic">No reviews yet. Be the first to review!</p>
+                  {book.reviewsCount > 0 ? (
+                    <Link href={`/books/${id}/reviews`} className="text-primary hover:underline">
+                      Read all {book.reviewsCount} reviews
+                    </Link>
+                  ) : (
+                    <p className="text-muted-foreground italic">No reviews yet. Be the first to review!</p>
+                  )}
                 </div>
               </div>
             </div>

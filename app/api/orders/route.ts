@@ -76,14 +76,29 @@ export async function POST(req: Request) {
 
     // Create IntaSend invoice/checkout for paid orders
     try {
-      // First try to initiate payment with IntaSend
+      // First create the order in pending state so we have a real ID for the API ref
+      const order = await prisma.order.create({
+        data: {
+          userId: session.user.id!,
+          totalAmount: total,
+          status: "PENDING",
+          items: {
+            create: books.map((book: any) => ({
+              bookId: book.id,
+              price: book.price
+            }))
+          }
+        }
+      })
+
+      // Initiate payment with IntaSend using the real order ID
       const checkoutArgs: any = {
         first_name: session.user.name?.split(' ')[0] || 'User',
         last_name: session.user.name?.split(' ')[1] || 'Name',
         email: session.user.email,
         amount: total,
         currency: 'KES',
-        api_ref: `TEMP-${Date.now()}`, // Temporary reference
+        api_ref: order.id, // Real order ID
         redirect_url: `${process.env.NEXTAUTH_URL}/checkout/success`,
       };
 
@@ -94,20 +109,10 @@ export async function POST(req: Request) {
 
       const checkout = await intasend.collection().charge(checkoutArgs);
 
-      // If successful, create the order in pending state
-      const order = await prisma.order.create({
-        data: {
-          userId: session.user.id!,
-          totalAmount: total,
-          status: "PENDING",
-          intasendRef: checkout.id,
-          items: {
-            create: books.map((book: any) => ({
-              bookId: book.id,
-              price: book.price
-            }))
-          }
-        }
+      // Update the order with the IntaSend reference string
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { intasendRef: checkout.id }
       })
 
       return NextResponse.json({ 

@@ -29,6 +29,8 @@ export async function GET() {
 
     const formattedOrders = orders.map((order: any) => ({
       id: order.id,
+      orderNumber: `ORD-${order.id.substring(0, 8).toUpperCase()}`,
+      paymentMethod: Number(order.totalAmount) === 0 ? "Free" : (order.intasendRef ? "IntaSend / M-Pesa" : "Pending"),
       date: order.createdAt.toLocaleDateString(),
       status: order.status,
       total: Number(order.totalAmount),

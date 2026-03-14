@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
 
 export async function POST(req: Request) {
   try {
@@ -8,10 +9,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // In a real application, you would integrate SendGrid, Resend, or another email provider here
-    // Or save it to a ContactMessage table in the database
-    console.log(`[CONTACT FORM SUBMISSION] From: ${firstName} ${lastName} (${email}) | Topic: ${topic}`)
-    console.log(`Message: ${message}`)
+    await prisma.contactMessage.create({
+      data: {
+        firstName,
+        lastName,
+        email,
+        topic,
+        message,
+      }
+    })
 
     return NextResponse.json({ success: true, message: "Message sent successfully" })
   } catch (error) {

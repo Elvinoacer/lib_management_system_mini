@@ -12,7 +12,10 @@ export async function POST(req: Request) {
     }
 
     try {
-      const decoded: any = jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret-key-*%")
+      const secret = process.env.NEXTAUTH_SECRET
+      if (!secret) throw new Error("NEXTAUTH_SECRET is not configured")
+      
+      const decoded: any = jwt.verify(token, secret)
       
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId }

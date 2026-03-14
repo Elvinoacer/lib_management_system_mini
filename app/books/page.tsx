@@ -11,19 +11,27 @@ import { SlidersHorizontal, Grid3X3, List, Loader2 } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { useCart } from "@/lib/store/cart"
 import { toast } from "sonner"
-
+import { useEffect } from "react"
 
 export default function BooksPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [debouncedQuery, setDebouncedQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All Categories")
   const [showFilters, setShowFilters] = useState(false)
   const addItem = useCart((state) => state.addItem)
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
   const { data: books = [], isLoading, isError } = useQuery<any[]>({
-    queryKey: ['books', searchQuery, selectedCategory],
+    queryKey: ['books', debouncedQuery, selectedCategory],
     queryFn: async () => {
       const params = new URLSearchParams()
-      if (searchQuery) params.set('q', searchQuery)
+      if (debouncedQuery) params.set('q', debouncedQuery)
       if (selectedCategory !== "All Categories") params.set('genre', selectedCategory)
       
       const res = await fetch(`/api/books?${params.toString()}`)

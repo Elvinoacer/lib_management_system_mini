@@ -52,3 +52,8 @@ export type Review = Prisma.ReviewModel
  * 
  */
 export type GlobalSettings = Prisma.GlobalSettingsModel
+/**
+ * Model ContactMessage
+ * 
+ */
+export type ContactMessage = Prisma.ContactMessageModel

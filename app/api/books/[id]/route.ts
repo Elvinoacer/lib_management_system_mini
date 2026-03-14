@@ -25,6 +25,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+    const session = await auth()
     const book = await prisma.book.findUnique({
       where: { id },
       select: {
@@ -32,6 +33,10 @@ export async function GET(
         genres: true, description: true, coverUrl: true,
         price: true, isFree: true, publishedYear: true,
         pageCount: true, language: true, createdAt: true,
+        reviews: { select: { rating: true } },
+        ...(session?.user?.id ? {
+          downloads: { where: { userId: session.user.id } }
+        } : {})
       }
     })
 
@@ -39,7 +44,23 @@ export async function GET(
       return NextResponse.json({ error: "Book not found" }, { status: 404 })
     }
 
-    return NextResponse.json(book)
+    const { reviews, downloads, ...bookData } = book as any
+    
+    // Calculate average rating
+    const totalReviews = reviews.length
+    const averageRating = totalReviews > 0 
+      ? reviews.reduce((acc: number, curr: any) => acc + curr.rating, 0) / totalReviews 
+      : 0
+
+    // Check ownership
+    const isOwned = downloads && downloads.length > 0
+
+    return NextResponse.json({
+      ...bookData,
+      rating: Number(averageRating.toFixed(1)),
+      reviewsCount: totalReviews,
+      isOwned
+    })
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch book" }, { status: 500 })
   }

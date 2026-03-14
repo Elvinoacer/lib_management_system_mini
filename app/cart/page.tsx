@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from "lucide-react"
 
 import { useCart } from "@/lib/store/cart"
+import { useSession } from "next-auth/react"
 
 export default function CartPage() {
   const { items, removeItem, total: getTotal } = useCart()
+  const { data: session } = useSession()
 
   const subtotal = getTotal()
   const discount = 0
@@ -108,12 +110,25 @@ export default function CartPage() {
                     </div>
                   </div>
 
-                  <Link href="/checkout" className="mt-6 block">
-                    <Button size="lg" className="w-full gap-2">
-                      Proceed to Checkout
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
+                  {session ? (
+                    <Link href="/checkout" className="mt-6 block">
+                      <Button size="lg" className="w-full gap-2">
+                        Proceed to Checkout
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  ) : (
+                    <div className="mt-6 flex flex-col gap-3">
+                      <div className="rounded-md bg-primary/10 p-3 text-sm text-center text-primary">
+                        Sign in to complete your purchase
+                      </div>
+                      <Link href="/login?callbackUrl=/checkout" className="block w-full">
+                        <Button size="lg" className="w-full gap-2">
+                          Sign In to Checkout
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
 
                   <p className="mt-4 text-center text-sm text-muted-foreground">
                     Secure checkout powered by IntaSend

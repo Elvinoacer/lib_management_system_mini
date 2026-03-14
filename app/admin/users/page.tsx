@@ -12,6 +12,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Search, MoreHorizontal, Eye, Ban, Shield, User, Loader2 } from "lucide-react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -32,6 +39,7 @@ interface UserData {
 export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [roleFilter, setRoleFilter] = useState("ALL")
+  const [selectedUser, setSelectedUser] = useState<any | null>(null)
   const queryClient = useQueryClient()
 
   const { data: users = [], isLoading, isError } = useQuery<any[]>({
@@ -46,13 +54,13 @@ export default function AdminUsersPage() {
   })
 
   const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string, role: string }) => {
+    mutationFn: async ({ userId, role, isSuspended }: { userId: string, role: string, isSuspended?: boolean }) => {
       const res = await fetch(`/api/admin/users`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, role })
+        body: JSON.stringify({ userId, role, isSuspended })
       })
-      if (!res.ok) throw new Error("Failed to update user role")
+      if (!res.ok) throw new Error("Failed to update user")
       return res.json()
     },
     onSuccess: () => {
@@ -221,7 +229,7 @@ export default function AdminUsersPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem className="gap-2">
+                                <DropdownMenuItem className="gap-2" onClick={() => setSelectedUser(user)}>
                                   <Eye className="h-4 w-4" />
                                   View Profile
                                 </DropdownMenuItem>
@@ -293,6 +301,57 @@ export default function AdminUsersPage() {
           </div>
         </main>
       </div>
+
+      <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>User Profile</DialogTitle>
+            <DialogDescription>
+              Detailed view of {selectedUser?.name}&apos;s account.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUser && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="text-right text-sm font-medium text-muted-foreground">Name</span>
+                <span className="col-span-3 font-medium">{selectedUser.name}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="text-right text-sm font-medium text-muted-foreground">Email</span>
+                <span className="col-span-3">{selectedUser.email}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="text-right text-sm font-medium text-muted-foreground">Role</span>
+                <span className="col-span-3">
+                  <Badge variant={selectedUser.role === "ADMIN" ? "default" : "secondary"}>
+                    {selectedUser.role}
+                  </Badge>
+                </span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="text-right text-sm font-medium text-muted-foreground">Status</span>
+                <span className="col-span-3">
+                  <Badge variant={selectedUser.status === "Active" ? "default" : "destructive"}>
+                    {selectedUser.status}
+                  </Badge>
+                </span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="text-right text-sm font-medium text-muted-foreground">Joined</span>
+                <span className="col-span-3">{selectedUser.joinedDate}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="text-right text-sm font-medium text-muted-foreground">Purchases</span>
+                <span className="col-span-3">{selectedUser.purchases || 0}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="text-right text-sm font-medium text-muted-foreground">Total Spent</span>
+                <span className="col-span-3">{selectedUser.totalSpent ? `KES ${selectedUser.totalSpent.toLocaleString()}` : "-"}</span>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

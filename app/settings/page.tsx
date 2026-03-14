@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useSession } from "next-auth/react"
+import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { DashboardHeader } from "@/components/dashboard/header"
@@ -30,6 +30,26 @@ export default function SettingsPage() {
     },
     enabled: status === 'authenticated'
   })
+
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("Are you absolutely sure? This action cannot be undone and you will lose access to all your purchases.")) return
+
+    setIsDeleting(true)
+    try {
+      const res = await fetch('/api/user/account', { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to delete account")
+      }
+      toast.success("Account deleted successfully")
+      await signOut({ callbackUrl: '/' })
+    } catch (error: any) {
+      toast.error(error.message)
+      setIsDeleting(false)
+    }
+  }
 
   // Update settings mutation
   const updateSettings = useMutation({
@@ -187,7 +207,14 @@ export default function SettingsPage() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Once you delete your account, there is no going back. Please be certain. All your purchased books will be inaccessible.
                   </p>
-                  <Button variant="destructive">Delete Account</Button>
+                  <Button 
+                    variant="destructive" 
+                    onClick={handleDeleteAccount}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Delete Account
+                  </Button>
                 </div>
               </div>
 

@@ -19,7 +19,19 @@ export async function GET() {
       })
     }
 
-    return NextResponse.json(settings)
+    const maskedCloudinaryName = process.env.CLOUDINARY_CLOUD_NAME 
+      ? `${process.env.CLOUDINARY_CLOUD_NAME.slice(0, 3)}***` 
+      : "Not configured"
+    
+    const maskedCloudinaryKey = process.env.CLOUDINARY_API_KEY
+      ? `${process.env.CLOUDINARY_API_KEY.slice(0, 4)}***`
+      : "Not configured"
+
+    return NextResponse.json({
+      ...settings,
+      cloudinaryName: maskedCloudinaryName,
+      cloudinaryKey: maskedCloudinaryKey
+    })
   } catch (error) {
     console.error("Failed to fetch settings:", error)
     return NextResponse.json({ error: "Failed to fetch settings" }, { status: 500 })

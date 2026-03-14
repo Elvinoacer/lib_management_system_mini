@@ -57,7 +57,8 @@ export const ModelName = {
   OrderItem: 'OrderItem',
   Download: 'Download',
   Review: 'Review',
-  GlobalSettings: 'GlobalSettings'
+  GlobalSettings: 'GlobalSettings',
+  ContactMessage: 'ContactMessage'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -168,6 +169,19 @@ export const GlobalSettingsScalarFieldEnum = {
 } as const
 
 export type GlobalSettingsScalarFieldEnum = (typeof GlobalSettingsScalarFieldEnum)[keyof typeof GlobalSettingsScalarFieldEnum]
+
+
+export const ContactMessageScalarFieldEnum = {
+  id: 'id',
+  firstName: 'firstName',
+  lastName: 'lastName',
+  email: 'email',
+  topic: 'topic',
+  message: 'message',
+  createdAt: 'createdAt'
+} as const
+
+export type ContactMessageScalarFieldEnum = (typeof ContactMessageScalarFieldEnum)[keyof typeof ContactMessageScalarFieldEnum]
 
 
 export const SortOrder = {

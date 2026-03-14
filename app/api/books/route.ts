@@ -27,7 +27,7 @@ export async function GET(req: Request) {
           isFree ? { isFree: true } : {},
         ]
       },
-      orderBy: sort === 'new' ? { createdAt: 'desc' } : { createdAt: 'desc' },
+      orderBy: sort === 'new' ? { createdAt: 'desc' } : { title: 'asc' },
       take: limit,
       skip: (page - 1) * limit,
       select: {

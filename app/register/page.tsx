@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { signIn } from "next-auth/react"
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -37,8 +38,19 @@ export default function RegisterPage() {
         throw new Error(data.error || "Registration failed")
       }
 
-      toast.success("Account created successfully! Please sign in.")
-      router.push("/login")
+      toast.success("Account created successfully!")
+      
+      const signInRes = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+      })
+      
+      if (signInRes?.error) {
+        router.push("/login")
+      } else {
+        router.push("/books")
+      }
     } catch (error: any) {
       toast.error(error.message || "An unexpected error occurred")
     } finally {

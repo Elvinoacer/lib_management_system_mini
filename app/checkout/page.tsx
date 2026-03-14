@@ -23,8 +23,15 @@ export default function CheckoutPage() {
   const [phoneNumber, setPhoneNumber] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
   const [pollingOrder, setPollingOrder] = useState<string | null>(null)
+  const [pollTimeLeft, setPollTimeLeft] = useState<number | null>(null)
   const { data: session, status } = useSession()
   const router = useRouter()
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m}:${s.toString().padStart(2, '0')}`
+  }
   
   const items = useCart((state) => state.items)
   const clearCart = useCart((state) => state.clearCart)
@@ -73,6 +80,7 @@ export default function CheckoutPage() {
         window.location.href = data.url
       } else if (data.orderId) {
         setPollingOrder(data.orderId)
+        setPollTimeLeft(300)
       } else {
         throw new Error("Invalid response from payment gateway")
       }
@@ -85,6 +93,8 @@ export default function CheckoutPage() {
   // Polling logic
   useEffect(() => {
     let timeoutId: NodeJS.Timeout
+    let countdownIntervalId: NodeJS.Timeout
+
     const pollOrderStatus = async () => {
       if (!pollingOrder) return
       
@@ -108,9 +118,26 @@ export default function CheckoutPage() {
 
     if (pollingOrder) {
       pollOrderStatus()
+      
+      countdownIntervalId = setInterval(() => {
+        setPollTimeLeft(prev => {
+          if (prev !== null && prev > 1) {
+            return prev - 1
+          } else if (prev === 1) {
+            toast.error("Payment timeout reached. Please try again.")
+            clearInterval(countdownIntervalId)
+            clearTimeout(timeoutId)
+            return 0
+          }
+          return prev
+        })
+      }, 1000)
     }
     
-    return () => clearTimeout(timeoutId)
+    return () => {
+      clearTimeout(timeoutId)
+      clearInterval(countdownIntervalId)
+    }
   }, [pollingOrder, router])
 
   if (status === "loading") {
@@ -220,12 +247,12 @@ export default function CheckoutPage() {
                   size="lg"
                   className="mt-6 w-full gap-2"
                   onClick={handleCheckout}
-                  disabled={isProcessing}
+                  disabled={isProcessing || (pollingOrder !== null && pollTimeLeft !== 0)}
                 >
                   {isProcessing ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      {pollingOrder ? "Waiting for M-Pesa payment..." : "Processing..."}
+                      {pollingOrder && pollTimeLeft !== null && pollTimeLeft > 0 ? "Polling..." : "Processing..."}
                     </>
                   ) : (
                     <>
@@ -234,6 +261,46 @@ export default function CheckoutPage() {
                     </>
                   )}
                 </Button>
+
+                {pollingOrder && pollTimeLeft !== null && pollTimeLeft > 0 && (
+                  <div className="mt-4 flex flex-col items-center gap-2">
+                    <p className="text-sm font-medium text-amber-600">
+                      Waiting for payment... ({formatTime(pollTimeLeft)} remaining)
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => {
+                        setPollingOrder(null)
+                        setPollTimeLeft(null)
+                        setIsProcessing(false)
+                      }}
+                    >
+                      Cancel & Go Back
+                    </Button>
+                  </div>
+                )}
+
+                {pollingOrder && pollTimeLeft === 0 && (
+                  <div className="mt-4 flex flex-col items-center gap-2">
+                    <p className="text-sm font-medium text-destructive text-center">
+                      Payment timeout reached. Your order was saved, but payment was not received.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => {
+                        setPollingOrder(null)
+                        setPollTimeLeft(null)
+                        setIsProcessing(false)
+                      }}
+                    >
+                      Try Again
+                    </Button>
+                  </div>
+                )}
 
                 <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
                   <Shield className="h-4 w-4" />
