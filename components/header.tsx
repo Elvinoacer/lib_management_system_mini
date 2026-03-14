@@ -113,14 +113,34 @@ export function Header() {
               </Link>
             ))}
             <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
-              <Link href="/login">
-                <Button variant="outline" className="w-full">
-                  Sign In
-                </Button>
-              </Link>
-              <Link href="/register">
-                <Button className="w-full">Get Started</Button>
-              </Link>
+              {session ? (
+                <>
+                  <Link href="/my-library" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="outline" className="w-full">Dashboard</Button>
+                  </Link>
+                  <Link href="/profile" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="outline" className="w-full">Profile Settings</Button>
+                  </Link>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-center text-destructive hover:bg-destructive/10 hover:text-destructive" 
+                    onClick={() => signOut({ callbackUrl: "/login?signedOut=true" })}
+                  >
+                    Sign Out
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="outline" className="w-full">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
+                    <Button className="w-full">Get Started</Button>
+                  </Link>
+                </>
+              )}
             </div>
           </nav>
         </div>
