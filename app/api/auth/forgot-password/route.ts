@@ -33,9 +33,11 @@ export async function POST(req: Request) {
     const resetUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/reset-password?token=${token}`
     
     // Send email using nodemailer
+    const port = Number(process.env.EMAIL_SERVER_PORT) || 587
     const transporter = nodemailer.createTransport({
       host: process.env.EMAIL_SERVER_HOST || 'smtp.ethereal.email',
-      port: Number(process.env.EMAIL_SERVER_PORT) || 587,
+      port: port,
+      secure: port === 465, // true for 465, false for other ports
       auth: {
         user: process.env.EMAIL_SERVER_USER,
         pass: process.env.EMAIL_SERVER_PASSWORD,
