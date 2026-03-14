@@ -21,6 +21,13 @@ export default auth((req: any) => {
     loginUrl.searchParams.set('callbackUrl', nextUrl.pathname)
     return Response.redirect(loginUrl)
   }
+
+  // Enforce email verification for members on protected routes
+  if (isLoggedIn && session?.user?.role === 'MEMBER' && !(session.user as any).emailVerified) {
+    if (isProtectedRoute) {
+      return Response.redirect(new URL('/verify-email', nextUrl))
+    }
+  }
 })
 
 export const config = {

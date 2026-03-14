@@ -44,7 +44,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             id: user.id,
             name: user.name,
             email: user.email,
-            role: user.role
+            role: user.role,
+            emailVerified: user.emailVerified
           }
         } catch (error) {
           console.error("AUTHORIZE ERROR:", error)
