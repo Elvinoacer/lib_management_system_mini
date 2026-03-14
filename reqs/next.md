@@ -1,460 +1,366 @@
-# Kitabu — Audit Report v3
-> Full audit: What's fixed, what's still broken, remaining dummy data, and bad UX flows
+# Kitabu — UX Flows Audit & Redesign
+> Complete analysis of all user flows, broken flows, and proposed improvements
 
 ---
 
-## Part 1 — What Was Fixed ✅
+## Part 1 — Critical Broken Things First
 
-All previously reported issues have been addressed:
-- All 13 missing pages now exist and nav links are corrected
-- Dashboard and Admin sidebars read from `useSession()` — no more "John Doe"
-- Profile page fetches real `createdAt` and books count from APIs
-- Settings notifications persist via `/api/user/settings` + `GlobalSettings` DB model
-- Password change hits a real `/api/user/password` with bcrypt verification
-- Categories page queries DB dynamically via `/api/categories`
-- Admin settings read/write from a `GlobalSettings` DB table
-- Admin users table now shows real `totalSpent` and uses `isSuspended` from DB
-- Admin dashboard "Top Selling Books" queries real `OrderItem` data
-- `/api/books` now supports `?isFree=true` and `?sort=new`
-- `/checkout/success` is now wired up from the polling flow
+### 🔴 BUG: `proxy.ts` is named wrong — middleware never runs
+
+The route protection logic lives in `proxy.ts`, NOT `middleware.ts`. Next.js only auto-loads a file named exactly `middleware.ts` at the project root. This means **all server-side route guards are completely inactive**. Any user can access `/admin`, `/profile`, `/settings`, `/orders`, `/checkout` without being logged in — the redirects only fire on the client side, causing a flash of protected content.
+
+**Fix:** Rename `proxy.ts` → `middleware.ts`.
 
 ---
 
-## Part 2 — Remaining Dummy / Placeholder Data (8 issues)
+### 🔴 BUG: Email verification doesn't exist — and never did
+
+You asked why you don't receive verification emails. The answer is that **email verification is not implemented anywhere in the system**:
+
+- The `User` model has **no `emailVerified` field**
+- The register API creates users and marks them active immediately
+- The register page auto-logs in after signup with zero email confirmation step
+- No verification token, no verification API route, no "check your email" gate exists
+
+The confusion may come from the forgot-password flow using nodemailer — but that's a different feature. For that to work, you also need `EMAIL_SERVER_HOST`, `EMAIL_SERVER_USER`, and `EMAIL_SERVER_PASSWORD` set in your `.env`. If those aren't configured, forgot-password emails also silently fail (nodemailer throws, the API returns 500).
+
+**To implement email verification you need:**
+1. Add `emailVerified: DateTime?` and `verificationToken: String? @unique` to the User schema + migration
+2. On register: generate a token, store it on the user, send a verification email (don't auto-login yet)
+3. Create `GET /api/auth/verify-email?token=...` — validate token, set `emailVerified`, clear token, auto-login
+4. Create `app/verify-email/page.tsx` — landing page that reads the token from URL and calls the API
+5. Gate checkout (and optionally the full library) behind `emailVerified !== null`
+6. Add a "Resend verification email" option to the dashboard for users who missed it
 
 ---
 
-### D-1: `components/books/category-filter.tsx` — STILL a hardcoded static list
-The sidebar filter on `/books` page is completely hardcoded despite `/api/categories` existing:
+### 🟠 UX BUG: Login page has no "Forgot Password" link
 
+The `/forgot-password` page exists and works, but there is no link to it anywhere on the login form. Users who forget their password have no way to discover this feature.
+
+**Fix:** Add below the password field:
 ```tsx
-const categories = [
-  "All Categories", "Fiction", "Non-Fiction",
-  "Business", "Technology", "Self-Help", "Biography", "Science", "History",
-]
-```
-
-This is inconsistent with the `/categories` page which fetches dynamically. If an admin adds a new genre ("Spirituality", "Law"), it will never appear in the sidebar filter.
-
-**Fix:** Replace the static array with a `useQuery` call to `/api/categories` and prepend "All Categories".
-
----
-
-### D-2: `app/books/[id]/page.tsx` — Hardcoded rating of 4.5 and "12 reviews"
-```tsx
-<span className="font-medium text-foreground">4.5</span>
-<span className="text-muted-foreground">(12 reviews)</span>
-```
-The `Review` model exists in the schema and has `rating` and `comment` fields but is never queried. Every single book shows the same 4.5 / 12 reviews.
-
-**Fix:** Add `reviews: { select: { rating: true } }` to the `GET /api/books/[id]` query. Compute average rating and count in the API response.
-
----
-
-### D-3: `app/books/[id]/page.tsx` — "PDF & EPUB" format claim is hardcoded
-```tsx
-<Check className="h-4 w-4 text-primary" />
-Available in PDF & EPUB formats
-```
-The `Book` schema has no `format` field. Files are stored in Cloudinary with a `fileKey`. The actual format depends on what was uploaded. Claiming every book comes in both PDF and EPUB is false.
-
-**Fix:** Either add a `format` field to the `Book` model (e.g., `format: String[]`), or change the text to "Digital download" which is always true.
-
----
-
-### D-4: `app/api/contact/route.ts` — Contact form submissions are discarded (console.log only)
-```ts
-// In a real application, you would integrate SendGrid, Resend, or another email provider here
-console.log(`[CONTACT FORM SUBMISSION] From: ${firstName}...`)
-```
-Users who submit the contact form believe their message was sent. It is not. It only prints to server logs.
-
-**Fix:** Either (a) save to a `ContactMessage` DB table and add an admin UI to view messages, or (b) integrate a real email provider (Resend is the recommended modern approach for Next.js apps).
-
----
-
-### D-5: `app/api/auth/forgot-password/route.ts` — Password reset emails are not sent
-```ts
-// Simulate sending email.
-console.log(`[PASSWORD RESET] Email to: ${email}`)
-console.log(`Reset Link: ${resetUrl}`)
-```
-The reset link only appears in server logs. Users see "Check your email" but receive nothing. The entire forgot-password feature is non-functional in production.
-
-**Fix:** Integrate Resend/SendGrid/Nodemailer to actually dispatch the reset email. Until integrated, the UI should not claim an email was sent.
-
----
-
-### D-6: `app/api/auth/forgot-password/route.ts` + `reset-password/route.ts` — Hardcoded fallback JWT secret
-```ts
-process.env.NEXTAUTH_SECRET || "fallback-secret-key-*%"
-```
-If `NEXTAUTH_SECRET` is not set in production, reset tokens are signed with a publicly visible hardcoded key, making them trivially forgeable.
-
-**Fix:** Throw an error if `NEXTAUTH_SECRET` is missing rather than silently falling back:
-```ts
-const secret = process.env.NEXTAUTH_SECRET
-if (!secret) throw new Error("NEXTAUTH_SECRET is not configured")
+<div className="flex items-center justify-between">
+  <Label htmlFor="password">Password</Label>
+  <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+    Forgot password?
+  </Link>
+</div>
 ```
 
 ---
 
-### D-7: `app/admin/settings/page.tsx` — Cloudinary section has hardcoded fake credentials
-```tsx
-<Input id="cloud-name" defaultValue="your-cloud-name" disabled />
-<Input id="api-key" type="password" defaultValue="8472947294" disabled />
-```
-These inputs are disabled so they can't be edited, but they show obviously fake placeholder values. The note says "managed via Environment Variables" which is correct, but it should display the actual env value (masked) or simply remove the fields entirely.
-
-**Fix:** Read `process.env.CLOUDINARY_CLOUD_NAME` in a server action and display the real masked value (e.g., `your-c***`), or replace these inputs with a clear note that these are env-only configs.
+## Part 2 — All Current Flows vs. Proposed Flows
 
 ---
 
-### D-8: `lib/auth.ts` — Debug `console.log` statements left in production auth code
-```ts
-console.log("Login attempt for:", credentials?.email)
-console.log("User not found via email")
-console.log("Bcrypt comparison isValid:", isValid)
-```
-This logs every login attempt's email and bcrypt result to server output — a privacy and security concern in production.
-
-**Fix:** Remove all three `console.log` statements. Use proper structured logging if needed.
-
----
-
-## Part 3 — Remaining Code Bugs (5 issues)
-
----
-
-### B-1: 🔴 CRITICAL — `app/api/orders/route.ts` — Webhook can never find the order (payment flow is broken)
-This is the most critical bug in the entire codebase. The IntaSend checkout is created with a **temporary `api_ref`** before the order exists in the DB:
-
-```ts
-// Step 1: Create IntaSend checkout
-const checkout = await intasend.collection().charge({
-  api_ref: `TEMP-${Date.now()}`,  // ← temporary placeholder
-  ...
-})
-
-// Step 2: Create order AFTER
-const order = await prisma.order.create({ ... intasendRef: checkout.id })
-```
-
-The webhook handler then tries to find the order using `payload.api_ref`:
-```ts
-const orderId = payload.api_ref  // = "TEMP-1234567890"
-const order = await prisma.order.findUnique({ where: { id: orderId } })
-// order is always null — the DB only has cuid() IDs, not TEMP-xxx
-```
-
-**Result:** Every paid M-Pesa transaction fires a webhook that logs "Order not found, ignoring." **No order ever gets marked PAID. No downloads are ever granted.**
-
-**Fix:** Create the pending order in the DB *first*, then use the real `order.id` as the `api_ref`:
-```ts
-// 1. Create pending order first
-const order = await prisma.order.create({
-  data: { userId, totalAmount: total, status: "PENDING", items: { create: ... } }
-})
-
-// 2. Pass real order.id as api_ref
-const checkout = await intasend.collection().charge({
-  api_ref: order.id,  // ← real DB ID that webhook can look up
-  ...
-})
-
-// 3. Update order with IntaSend reference
-await prisma.order.update({
-  where: { id: order.id },
-  data: { intasendRef: checkout.id }
-})
-```
-
----
-
-### B-2: `app/api/orders/me/route.ts` — Missing `orderNumber` and `paymentMethod` fields
-The user-facing orders page (`app/orders/page.tsx`) expects both `order.orderNumber` and `order.paymentMethod` in the response, but `/api/orders/me` never returns them:
-
-```ts
-// /api/orders/me returns:
-{ id, date, status, total, items }
-
-// Page expects:
-order.orderNumber  // → undefined, displays as blank
-order.paymentMethod  // → undefined, displays as blank
-```
-
-**Fix:** Add these fields to the `/api/orders/me` response:
-```ts
-orderNumber: `ORD-${order.id.slice(0, 8).toUpperCase()}`,
-paymentMethod: order.status === "PAID" ? "IntaSend / M-Pesa" : order.totalAmount === 0 ? "Free" : "Pending"
-```
-
----
-
-### B-3: `app/api/books/route.ts` — The `?sort=new` parameter does nothing different
-```ts
-orderBy: sort === 'new' ? { createdAt: 'desc' } : { createdAt: 'desc' }
-```
-Both branches of the ternary are identical. The sort param has no effect — all books are always sorted by `createdAt: 'desc'` regardless.
-
-**Fix:** Add a meaningful alternative sort (e.g., default to `title asc` and use `createdAt desc` only when `sort=new`):
-```ts
-orderBy: sort === 'new' ? { createdAt: 'desc' } : { title: 'asc' }
-```
-
----
-
-### B-4: `app/admin/users/page.tsx` — "Suspend User" dropdown item has no `onClick`
-The "Suspend User" menu item in the admin users table is purely decorative:
-```tsx
-<DropdownMenuItem className="gap-2 text-destructive">
-  <Ban className="h-4 w-4" />
-  Suspend User
-</DropdownMenuItem>
-```
-There's no `onClick`. The backend PATCH endpoint now supports `isSuspended` but the UI never calls it.
-
-**Fix:**
-```tsx
-<DropdownMenuItem
-  onClick={() => updateRoleMutation.mutate({ userId: user.id, isSuspended: true })}
->
-  Suspend User
-</DropdownMenuItem>
-```
-Also add an "Unsuspend" option that appears when `user.status === "Suspended"`.
-
----
-
-### B-5: `app/admin/users/page.tsx` — "View Profile" has no action
-```tsx
-<DropdownMenuItem className="gap-2">
-  <Eye className="h-4 w-4" />
-  View Profile
-</DropdownMenuItem>
-```
-No `onClick`, no link, no navigation. Clicking it does nothing.
-
-**Fix:** Navigate to a user profile detail route, or open a modal with the user's full details. Either `router.push(\`/admin/users/${user.id}\`)` (requires a new page) or a simple dialog showing name, email, join date, and order history.
-
----
-
-## Part 4 — Bad UX Flows (8 issues)
-
----
-
-### F-1: 🔴 Checkout Polling Has No Timeout or Cancel — Users Get Stuck Forever
+### Flow 1 — Registration
 
 **Current flow:**
-1. User submits M-Pesa number → STK push sent
-2. Checkout page enters polling mode: "Waiting for M-Pesa payment..."
-3. The polling runs **indefinitely** with no maximum wait time
-4. If user dismisses the STK push on their phone, the UI is frozen permanently
-
-There is no cancel button, no "resend push" button, no timeout that gives up after N seconds, and no way for the user to go back without a hard browser refresh (which loses their cart state).
-
-**Proposed strategy:**
 ```
-- Set a timeout of 5 minutes (300 seconds)
-- Show a countdown to the user: "Waiting... (4:47 remaining)"
-- After timeout, show: "Payment not received. Your order is saved — try again."
-- Show a "Cancel & Go Back" button that clears pollingOrder and re-enables the form
-- Show a "Resend M-Pesa Push" button for when users miss the first prompt
+/register → fill form → POST /api/auth/register → signIn() auto-login → /books
 ```
 
----
+**Problems:**
+- No email verification — anyone can register with a fake email
+- No `callbackUrl` carried through — if user came from `/checkout`, they land on `/books` after registering
+- Register page doesn't read or pass a `callbackUrl` query param
+- No password strength indicator
+- The "Must be at least 8 characters" hint appears after the field, not as live feedback
 
-### F-2: 🔴 Register → Must Login Again (No Auto-Login After Registration)
-
-**Current flow:**
-1. User fills out registration form
-2. API creates account
-3. `toast.success("Account created! Please sign in.")`
-4. `router.push("/login")` — user must manually type credentials again
-
-This is a jarring experience. The user just provided their email and password 10 seconds ago.
-
-**Proposed strategy:**
-After successful registration, automatically call `signIn("credentials", { email, password, redirect: false })` then redirect to `/books` or the `callbackUrl`. No separate login step needed.
-
----
-
-### F-3: 🟠 Book Detail Page Shows "Add to Cart" Even When User Already Owns the Book
-
-**Current flow:**
-1. User has already purchased and downloaded "Book A"
-2. User revisits the `/books/book-a` page
-3. Page shows "Add to Cart" (or "Go to Cart" if it's in cart)
-4. User adds to cart, proceeds to checkout
-5. Checkout API returns `400: "You already own some of these books"` — error shown
-
-The user is led all the way through the checkout flow before being told they already own the book.
-
-**Proposed strategy:**
-On the book detail page, if the user is authenticated, check their download records against the current book ID. Show a "Read / Download" button instead of "Add to Cart" if they already own it. This requires either:
-- A `GET /api/my-library` call to check ownership (add `bookIds` array to response), or
-- A `GET /api/books/[id]/ownership` endpoint
-
----
-
-### F-4: 🟠 Cart Page Has No Auth Check — Users Discover Auth Only at Checkout
-
-**Current flow:**
-1. Unauthenticated user browses books, adds to cart
-2. Navigates to `/cart` — page loads fine, shows cart
-3. Clicks "Proceed to Checkout"
-4. Checkout page redirects to login
-
-The user is three pages deep before discovering they need an account. The cart should prompt login or surface a "Sign in to checkout" banner.
-
-**Proposed strategy:** The cart page should detect unauthenticated users and show a prominent banner: _"Sign in to complete your purchase"_ with Sign In / Register buttons, ideally before they click "Proceed to Checkout." The cart items should remain (they persist in localStorage via Zustand).
-
----
-
-### F-5: 🟠 Search on `/books` Fires an API Call on Every Keystroke (No Debounce)
-
-**Current flow:**
-- Search input is tied directly to `queryKey: ['books', searchQuery]`
-- Typing "business" fires 8 consecutive API requests (b, bu, bus, busi...)
-
-**Proposed strategy:** Debounce the search input by 300-400ms before updating `searchQuery` state. Use either `setTimeout` in the component or a library like `use-debounce`:
-```ts
-const [inputValue, setInputValue] = useState("")
-const [searchQuery, setSearchQuery] = useState("")
-
-useEffect(() => {
-  const timer = setTimeout(() => setSearchQuery(inputValue), 350)
-  return () => clearTimeout(timer)
-}, [inputValue])
+**Proposed flow:**
+```
+/register?callbackUrl=/checkout
+  → fill form (with live password strength meter)
+  → POST /api/auth/register
+  → send verification email
+  → redirect to /verify-email/sent?email=xxx
+     (show "Check your email" screen with resend button)
+  → user clicks link in email → GET /api/auth/verify-email?token=xxx
+  → auto-login → redirect to callbackUrl (/checkout) or /books
 ```
 
+**Changes needed:**
+- Register page reads `?callbackUrl` and passes it through
+- After registration, redirect to a holding screen instead of auto-logging in
+- Add live password strength feedback (at minimum: change hint text color to green/red)
+
 ---
 
-### F-6: 🟠 Wishlist Feature Is Client-Only State — Resets on Refresh
+### Flow 2 — Login
 
 **Current flow:**
-1. User clicks "Wishlist" on book detail page
-2. Heart icon turns filled, state shows "Wishlisted"
-3. User navigates away or refreshes
-4. Wishlist is gone — it was stored in `useState`, not persisted anywhere
+```
+/login?callbackUrl=X → sign in → router.push(callbackUrl || "/")
+```
 
-The Wishlist button implies persistence but provides none. Either remove it or implement it properly.
+**Problems:**
+- Default callbackUrl is `"/"` (homepage) — logged-in users have no reason to be on the homepage
+- No "Forgot password?" link anywhere on the form
+- Admin users land on `"/"` same as regular users — they have to manually navigate to `/admin`
+- If user came from `/register` link via login page, the `callbackUrl` chain is broken
+- After successful sign-in, `router.push(callbackUrl)` then `router.refresh()` — the refresh is redundant since NextAuth updates the session automatically
 
-**Proposed strategy:**
-Option A (preferred): Add a `Wishlist` model to the schema (`userId`, `bookId`, `createdAt`), create `POST/DELETE /api/wishlist/[bookId]`, show a wishlist page at `/my-library?tab=wishlist`.
-Option B (quick): Remove the Wishlist button entirely until the feature is built. A broken promise is worse than a missing feature.
+**Proposed flow:**
+```
+/login?callbackUrl=X
+  → sign in
+  → if role === ADMIN → /admin
+  → if callbackUrl exists → callbackUrl  
+  → else → /books  (not "/")
+```
 
----
-
-### F-7: 🟠 Delete Account Button Does Nothing
-
-The "Danger Zone" section in `/settings` has a "Delete Account" button with no implementation:
+**Changes needed:**
 ```tsx
-<Button variant="destructive">Delete Account</Button>
+// In handleSubmit, after successful signIn:
+const callbackUrl = searchParams.get("callbackUrl")
+const destination = callbackUrl 
+  ? callbackUrl 
+  : result.user?.role === "ADMIN" ? "/admin" : "/books"
+router.push(destination)
+```
+- Add "Forgot password?" link below the password label
+- Remove `router.refresh()` after push (unnecessary with NextAuth v5)
+
+---
+
+### Flow 3 — Forgot Password
+
+**Current flow:**
+```
+/forgot-password → enter email → POST /api/auth/forgot-password
+  → nodemailer sends email (IF env vars configured)
+  → user clicks link in email → /reset-password?token=xxx
+  → enter new password → POST /api/auth/reset-password
+  → success toast → /login
 ```
 
-No confirmation dialog, no API call, no `onClick`. Users expecting GDPR/data deletion will find it silently non-functional.
+**Problems:**
+- Flow itself is good but **nodemailer won't work unless `EMAIL_SERVER_HOST`, `EMAIL_SERVER_USER`, `EMAIL_SERVER_PASSWORD` are set**. If they're not, the API throws and returns 500 — the user sees an error with no hint about what's wrong.
+- After resetting password, user is sent to `/login` but the email field is empty — they have to retype their email
+- No link to `/forgot-password` from the login page (as noted above)
+- The reset link (`/reset-password?token=xxx`) has no expiry warning displayed on the page — the token is 1 hour, users don't know this
 
-**Proposed strategy:**
-1. Add a confirmation `AlertDialog` ("Are you sure? This cannot be undone. Type your email to confirm.")
-2. Create `DELETE /api/user/account` that: anonymizes or deletes user data, cancels active sessions, and handles related records (orders/downloads should be kept for audit, user record can be anonymized).
+**Proposed flow:**
+```
+/login → click "Forgot password?" → /forgot-password
+  → enter email → POST /api/auth/forgot-password
+  → /forgot-password (show success state: "Check your inbox — link expires in 1 hour")
+  → user clicks link → /reset-password?token=xxx
+     (show: "Set a new password — this link expires 1 hour from when it was sent")
+  → enter new password + confirm → POST /api/auth/reset-password
+  → auto-login with new credentials → /books (or /my-library)
+  (no manual login step needed — they just proved they own the email)
+```
+
+**Changes needed:**
+- After successful reset, auto-login instead of redirecting to `/login`
+- Display the 1-hour expiry notice on the reset password page
+- Pre-fill the email on `/login` after reset (pass `?email=xxx` as query param)
+- Add env var validation in the API and return a cleaner error if SMTP is not configured
 
 ---
 
-### F-8: 🟡 No Route-Level Auth Protection (Missing `proxy.ts`)
+### Flow 4 — Browse → Add to Cart → Checkout (Unauthenticated User)
 
-There is no `proxy.ts` file in this version. All auth checks happen client-side via `useSession()` in each page component. This means:
-- The HTML/SSR content of protected pages (`/admin/*`, `/profile`, `/settings`, `/orders`) is served to unauthenticated requests before the client redirects
-- Search engine crawlers and bots can potentially access protected page structures
-- Users can briefly see protected page layouts before the auth redirect fires
+**Current flow:**
+```
+browse /books → add to cart → /cart
+  → if unauthenticated: show "Sign In to Checkout" button → /login?callbackUrl=/checkout
+  → login → /checkout → pay
+```
 
-**Proposed strategy:** Create `proxy.ts` using NextAuth's built-in middleware:
-```ts
-import NextAuth from 'next-auth'
-import { authConfig } from './lib/auth.config'
+**Problems:**
+- Cart IS shown to unauthenticated users (good — items persist via Zustand localStorage)
+- "Sign In to Checkout" button links to `/login?callbackUrl=/checkout` ✅ this is correct
+- BUT: if the user clicks "Register" instead of "Sign In" from the login page, the `callbackUrl=/checkout` is lost — after registration they land on `/books`
+- The login page's "Don't have an account? Sign up" link is just `/register` with no callbackUrl forwarding
 
-const { auth } = NextAuth(authConfig)
+**Proposed flow:**
+```
+/login?callbackUrl=/checkout
+  → user clicks "Sign up instead"
+  → /register?callbackUrl=/checkout  (preserve callbackUrl)
+  → register + verify → /checkout    (honor the original destination)
+```
 
-export default auth((req) => {
-  const { nextUrl, auth: session } = req
-  const isLoggedIn = !!session?.user
+**Changes needed:**
+```tsx
+// In login page, change the sign-up link to preserve callbackUrl:
+const callbackUrl = searchParams.get("callbackUrl") || ""
+<Link href={`/register${callbackUrl ? `?callbackUrl=${callbackUrl}` : ""}`}>
+  Sign up for free
+</Link>
 
-  const isAdminRoute = nextUrl.pathname.startsWith('/admin')
-  const isProtectedRoute = ['/my-library', '/orders', '/profile', '/settings', '/checkout'].some(
-    p => nextUrl.pathname.startsWith(p)
-  )
-
-  if (isAdminRoute && session?.user?.role !== 'ADMIN') {
-    return Response.redirect(new URL('/login', nextUrl))
-  }
-
-  if (isProtectedRoute && !isLoggedIn) {
-    const loginUrl = new URL('/login', nextUrl)
-    loginUrl.searchParams.set('callbackUrl', nextUrl.pathname)
-    return Response.redirect(loginUrl)
-  }
-})
-
-export const config = {
-  matcher: ['/admin/:path*', '/my-library/:path*', '/orders/:path*', '/profile/:path*', '/settings/:path*', '/checkout/:path*']
-}
+// Mirror in register page, change the "Sign in" link:
+<Link href={`/login${callbackUrl ? `?callbackUrl=${callbackUrl}` : ""}`}>
+  Sign in
+</Link>
 ```
 
 ---
 
-## Summary Table
+### Flow 5 — Book Purchase (Owned Book)
 
-| # | Type | Severity | File | Issue |
-|---|---|---|---|---|
-| D-1 | Dummy data | 🟠 High | `components/books/category-filter.tsx` | Hardcoded static category list; doesn't use DB |
-| D-2 | Dummy data | 🟠 High | `app/books/[id]/page.tsx` | Rating 4.5 and "12 reviews" hardcoded for every book |
-| D-3 | Dummy data | 🟡 Medium | `app/books/[id]/page.tsx` | "PDF & EPUB formats" claim is false (no format field) |
-| D-4 | Fake API | 🟠 High | `app/api/contact/route.ts` | Contact form submissions silently discarded |
-| D-5 | Fake API | 🔴 Critical | `app/api/auth/forgot-password/route.ts` | Password reset emails never sent |
-| D-6 | Security | 🔴 Critical | `app/api/auth/forgot-password/route.ts` | Hardcoded fallback JWT secret |
-| D-7 | Dummy data | 🟡 Medium | `app/admin/settings/page.tsx` | Fake Cloudinary credentials displayed |
-| D-8 | Debug code | 🟠 High | `lib/auth.ts` | Production debug `console.log` leaks user emails |
-| B-1 | Bug | 🔴 Critical | `app/api/orders/route.ts` | `api_ref=TEMP-xxx` means webhook never finds order — no payments ever complete |
-| B-2 | Bug | 🟠 High | `app/api/orders/me/route.ts` | `orderNumber` and `paymentMethod` never returned — shows blank in UI |
-| B-3 | Bug | 🟡 Medium | `app/api/books/route.ts` | `?sort=new` has identical branches — does nothing |
-| B-4 | Bug | 🟠 High | `app/admin/users/page.tsx` | "Suspend User" has no onClick; isSuspended never set from UI |
-| B-5 | Bug | 🟡 Medium | `app/admin/users/page.tsx` | "View Profile" has no action |
-| F-1 | Bad Flow | 🔴 Critical | `app/checkout/page.tsx` | M-Pesa polling has no timeout, no cancel — users stuck forever |
-| F-2 | Bad Flow | 🟠 High | `app/register/page.tsx` | No auto-login after registration — double credential entry |
-| F-3 | Bad Flow | 🟠 High | `app/books/[id]/page.tsx` | "Add to Cart" shown even for already-owned books |
-| F-4 | Bad Flow | 🟠 High | `app/cart/page.tsx` | No auth prompt until checkout — late discovery |
-| F-5 | Bad Flow | 🟡 Medium | `app/books/page.tsx` | Search fires API call on every keystroke — no debounce |
-| F-6 | Bad Flow | 🟡 Medium | `app/books/[id]/page.tsx` | Wishlist is ephemeral state — lost on refresh |
-| F-7 | Bad Flow | 🟡 Medium | `app/settings/page.tsx` | Delete Account button does nothing |
-| F-8 | Security | 🔴 Critical | missing `proxy.ts` | No server-side route protection — all auth is client-only |
+**Current flow:**
+```
+/books/[id]
+  → if user owns book: show "Go to Library" button ✅ (fixed in v3)
+  → if not in cart: show "Add to Cart"
+  → if in cart: show "Go to Cart"
+```
+
+This flow is now correct. The `isOwned` field is computed in `GET /api/books/[id]` and the page renders the right button state.
+
+**Remaining issue:** The "Go to Library" button links to `/my-library` which shows ALL owned books. It would be better UX to link to the download directly, or at least to `/my-library` with the book highlighted/focused.
 
 ---
 
-## Priority Action Plan
+### Flow 6 — Checkout (M-Pesa)
 
-### 🔴 Fix Immediately (Breaks Core Functionality)
-1. **B-1** — Fix `api_ref` ordering bug in checkout — nothing gets paid until this is fixed
-2. **F-1** — Add polling timeout + cancel button to checkout
-3. **D-5** — Integrate real email provider for password reset
-4. **F-8** — Add `proxy.ts` for server-side route protection
-5. **D-6** — Remove JWT secret fallback string
+**Current flow:**
+```
+/checkout
+  → enter phone → POST /api/orders
+  → order created with real ID → IntaSend STK push sent
+  → poll /api/orders/[id] every 3 seconds
+  → countdown timer (5 minutes) shown
+  → if PAID → /checkout/success?orderId=xxx
+  → if timeout → "Try Again" button shown
+```
 
-### 🟠 Fix Soon (Affects User Experience)
-6. **B-2** — Add `orderNumber` and `paymentMethod` to `/api/orders/me`
-7. **F-2** — Auto-login after registration
-8. **F-3** — Show "Download" instead of "Add to Cart" for owned books
-9. **D-1** — Make `CategoryFilter` component dynamic
-10. **D-2** — Fetch real ratings from `Review` model
-11. **D-8** — Remove debug `console.log` from auth
-12. **B-4** — Wire "Suspend User" to the PATCH endpoint
+**This flow is now correct** (B-1 was fixed — real order ID used as api_ref). The polling has a timeout, cancel button, and resend push button.
 
-### 🟡 Polish (Complete the Feature Set)
-13. **B-3** — Fix `?sort=new` ternary
-14. **D-3** — Add `format` field to Book model or remove false claim
-15. **D-4** — Persist contact form messages
-16. **D-7** — Display real masked env values in admin settings
-17. **F-4** — Add auth prompt to cart page
-18. **F-5** — Debounce search input
-19. **F-6** — Either implement Wishlist properly or remove the button
-20. **F-7** — Implement Delete Account with confirmation dialog
-21. **B-5** — Wire "View Profile" to a detail view or modal
+**Remaining improvements:**
+- After timeout, the order is in PENDING state in the DB — if the user completes payment later (via M-Pesa menu directly), the webhook will still fire and complete the order. The "Your order was saved" message on timeout is correct. Consider adding: "Check your orders page — payment may still arrive."
+- The "Resend M-Pesa Push" button calls `handleCheckout` which creates a **new** order — the old PENDING order is orphaned. It should instead re-trigger payment on the existing order ID.
+
+---
+
+### Flow 7 — Sign Out
+
+**Current flow:**
+```
+Dashboard sidebar → Sign Out button → signOut({ callbackUrl: "/login" })
+Admin sidebar → Sign Out button → signOut({ callbackUrl: "/login" })
+Settings page delete account → signOut({ callbackUrl: "/" })
+```
+
+**Problem:** Signing out lands on `/login` which is the right choice, but the login page doesn't show a "You've been signed out" confirmation message. Users might wonder if the sign-out worked.
+
+**Proposed improvement:**
+```
+signOut({ callbackUrl: "/login?signedOut=true" })
+// In login page:
+const signedOut = searchParams.get("signedOut")
+{signedOut && <div className="...">You've been signed out successfully.</div>}
+```
+
+---
+
+### Flow 8 — Admin Access
+
+**Current flow:**
+```
+Admin navigates to /admin
+  → proxy.ts (currently broken/not running) should protect
+  → client-side: AdminSidebar renders and shows session role
+```
+
+**Problems:**
+- Middleware not running (proxy.ts vs middleware.ts)
+- Non-admin users who visit `/admin` see a flash of the admin UI before client redirect fires
+- After login, admins land on `/books` (callbackUrl default) not `/admin`
+- No visual indicator in the main header that an admin is logged in
+
+**Proposed flow:**
+```
+Admin logs in → /admin (direct, based on role check in login handler)
+Non-admin tries /admin → middleware redirects to /login (once middleware.ts is fixed)
+Admin sidebar shows real session name/email ✅ (already fixed)
+```
+
+---
+
+### Flow 9 — Account Deletion
+
+**Current flow:**
+```
+/settings → Danger Zone → "Delete Account" button
+  → window.confirm() dialog
+  → DELETE /api/user/account (anonymizes user)
+  → signOut({ callbackUrl: "/" })
+```
+
+**Problems:**
+- `window.confirm()` is a browser native dialog — unstyled, inconsistent across browsers, can't be customized
+- After deletion, user is sent to `"/"` (homepage) which still shows the "Sign In / Register" state — no farewell or confirmation message
+- The deletion anonymizes the user record (`Deleted User`, `deleted_xxx@example.com`) but doesn't clear the Zustand cart — the user's last cart items persist in localStorage
+
+**Proposed flow:**
+```
+/settings → Danger Zone → "Delete Account" button
+  → styled AlertDialog (shadcn/ui component, already installed)
+     "Are you absolutely sure? Type DELETE to confirm."
+  → DELETE /api/user/account
+  → clear cart (call clearCart() before signOut)
+  → signOut({ callbackUrl: "/account-deleted" })
+  → /account-deleted page: "Your account has been deleted. Thank you for using Kitabu."
+     with a "Browse Books" link
+```
+
+---
+
+### Flow 10 — Download a Book
+
+**Current flow:**
+```
+/my-library → click Download button
+  → GET /api/downloads/[bookId] (verifies ownership, generates Cloudinary signed URL)
+  → window.open(url, '_blank') — opens download in new tab
+```
+
+**This flow is correct** and well-secured (ownership verified server-side, 15-minute expiring URL).
+
+**Minor UX issue:** The download button has no loading state — clicking it shows a toast "Preparing your download..." but the button itself doesn't visually change. This can make users double-click.
+
+**Improvement:** Set a per-book loading state and disable the button while the URL is being fetched.
+
+---
+
+## Part 3 — Missing Redirects Summary
+
+| Scenario | Current destination | Better destination |
+|---|---|---|
+| Login success (regular user) | `callbackUrl \|\| "/"` | `callbackUrl \|\| "/books"` |
+| Login success (admin) | `callbackUrl \|\| "/"` | `callbackUrl \|\| "/admin"` |
+| Register success | `/books` | `callbackUrl \|\| "/books"` |
+| Login → click "Sign Up" | `/register` (no callbackUrl) | `/register?callbackUrl=xxx` |
+| Register → click "Sign In" | `/login` (no callbackUrl) | `/login?callbackUrl=xxx` |
+| Password reset success | `/login` (blank form) | `/login?email=xxx` (pre-filled) |
+| Sign out | `/login` (no message) | `/login?signedOut=true` (with banner) |
+| Account deleted | `"/"` (homepage, no message) | `/account-deleted` (confirmation page) |
+
+---
+
+## Part 4 — Implementation Checklist
+
+### Immediate (breaks/silent failures)
+- [ ] Rename `proxy.ts` → `middleware.ts`
+- [ ] Add `EMAIL_SERVER_HOST`, `EMAIL_SERVER_USER`, `EMAIL_SERVER_PASSWORD` to `.env`
+- [ ] Add "Forgot password?" link to login page password field
+
+### High Priority (UX flows)
+- [ ] Login: change default redirect from `"/"` to `"/books"` (or `"/admin"` for admins)
+- [ ] Login/Register: pass `callbackUrl` through the "Sign up / Sign in" cross-links
+- [ ] Register: read and honor `callbackUrl` after successful registration
+- [ ] Password reset: auto-login after reset instead of redirecting to login
+- [ ] Sign out: add `?signedOut=true` and display banner on login page
+
+### Medium Priority (feature completion)
+- [ ] Email verification: add `emailVerified` + `verificationToken` to User schema
+- [ ] Email verification: build the full token flow (send → landing page → verify API)
+- [ ] Account deletion: replace `window.confirm()` with shadcn `AlertDialog`
+- [ ] Account deletion: clear cart before signOut, add `/account-deleted` page
+- [ ] Checkout timeout: fix "Resend Push" to re-trigger on existing order, not create new one
+- [ ] Download button: add per-book loading state

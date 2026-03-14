@@ -8,18 +8,20 @@ datasource db {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  name         String
-  email        String     @unique
-  passwordHash String
+  id                String     @id @default(cuid())
+  name              String
+  email             String     @unique
+  emailVerified     DateTime?
+  verificationToken String?    @unique
+  passwordHash      String
   role              Role       @default(MEMBER)
   isSuspended       Boolean    @default(false)
   orderUpdates      Boolean    @default(true)
   promotionalEmails Boolean    @default(false)
   createdAt         DateTime   @default(now())
-  orders       Order[]
-  downloads    Download[]
-  reviews      Review[]
+  orders            Order[]
+  downloads         Download[]
+  reviews           Review[]
 }
 
 model Book {

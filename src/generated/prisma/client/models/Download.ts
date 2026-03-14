@@ -409,10 +409,6 @@ export type DownloadUncheckedUpdateManyWithoutBookNestedInput = {
   deleteMany?: Prisma.DownloadScalarWhereInput | Prisma.DownloadScalarWhereInput[]
 }
 
-export type NullableDateTimeFieldUpdateOperationsInput = {
-  set?: Date | string | null
-}
-
 export type DownloadCreateWithoutUserInput = {
   id?: string
   grantedAt?: Date | string

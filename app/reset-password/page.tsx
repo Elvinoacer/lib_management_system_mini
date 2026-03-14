@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
+import { signIn } from "next-auth/react"
 
 function ResetPasswordForm() {
   const [isLoading, setIsLoading] = useState(false)
@@ -50,8 +51,19 @@ function ResetPasswordForm() {
         throw new Error(data.error || "Failed to reset password")
       }
 
-      toast.success("Password successfully reset! Please login.")
-      router.push('/login')
+      toast.success("Password successfully reset! Logging you in...")
+      
+      const signInRes = await signIn("credentials", {
+        redirect: false,
+        email: data.email,
+        password: newPassword,
+      })
+
+      if (signInRes?.error) {
+        router.push(`/login?email=${encodeURIComponent(data.email)}`)
+      } else {
+        router.push('/books')
+      }
     } catch (error: any) {
       toast.error(error.message)
     } finally {

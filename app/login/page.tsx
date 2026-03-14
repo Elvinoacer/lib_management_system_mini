@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { Suspense, useState, useEffect } from "react"
 import Link from "next/link"
 import { Book, Eye, EyeOff, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,15 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") || "/"
+  const callbackUrl = searchParams.get("callbackUrl") || ""
+  const signedOut = searchParams.get("signedOut") === "true"
+  const prefillEmail = searchParams.get("email") || ""
+
+  useEffect(() => {
+    if (signedOut) {
+      toast.success("You have been signed out.")
+    }
+  }, [signedOut])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -36,7 +44,15 @@ function LoginForm() {
         toast.error("Invalid email or password")
       } else {
         toast.success("Welcome back!")
-        router.push(callbackUrl)
+        // Fetch session to determine role
+        const sessionRes = await fetch("/api/auth/session")
+        const session = await sessionRes.json()
+        
+        const destination = callbackUrl 
+          ? callbackUrl 
+          : session?.user?.role === "ADMIN" ? "/admin" : "/books"
+          
+        router.push(destination)
         router.refresh()
       }
     } catch (error) {
@@ -63,6 +79,7 @@ function LoginForm() {
             name="email"
             type="email"
             placeholder="you@example.com"
+            defaultValue={prefillEmail}
             required
           />
         </div>
@@ -70,6 +87,9 @@ function LoginForm() {
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="password">Password</Label>
+            <Link href="/forgot-password" className="text-sm font-medium text-primary hover:underline">
+              Forgot password?
+            </Link>
           </div>
           <div className="relative">
             <Input
@@ -103,7 +123,10 @@ function LoginForm() {
 
       <p className="mt-8 text-center text-sm text-muted-foreground">
         Don't have an account?{" "}
-        <Link href="/register" className="font-medium text-primary hover:underline">
+        <Link 
+          href={`/register${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`} 
+          className="font-medium text-primary hover:underline"
+        >
           Sign up for free
         </Link>
       </p>

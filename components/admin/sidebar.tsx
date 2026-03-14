@@ -79,7 +79,7 @@ export function AdminSidebar() {
               <p className="text-xs text-muted-foreground truncate">{session?.user?.email || ""}</p>
             </div>
           </div>
-          <Button variant="ghost" className="mt-3 w-full justify-start gap-2 text-muted-foreground" onClick={() => signOut({ callbackUrl: "/login" })}>
+          <Button variant="ghost" className="mt-3 w-full justify-start gap-2 text-muted-foreground" onClick={() => signOut({ callbackUrl: "/login?signedOut=true" })}>
             <LogOut className="h-4 w-4" />
             Sign Out
           </Button>

@@ -32,7 +32,7 @@ export async function POST(req: Request) {
         data: { passwordHash: hash }
       })
 
-      return NextResponse.json({ success: true, message: "Password reset successful" })
+      return NextResponse.json({ success: true, message: "Password reset successful", email: user.email })
     } catch (err) {
       return NextResponse.json({ error: "Invalid or expired token" }, { status: 400 })
     }

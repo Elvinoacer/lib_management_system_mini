@@ -68,7 +68,7 @@ export function Header() {
               <Link href="/my-library">
                 <Button variant="ghost" size="sm">Dashboard</Button>
               </Link>
-              <Button variant="outline" size="sm" onClick={() => signOut()}>
+              <Button variant="outline" size="sm" onClick={() => signOut({ callbackUrl: "/login?signedOut=true" })}>
                 Sign Out
               </Button>
             </div>

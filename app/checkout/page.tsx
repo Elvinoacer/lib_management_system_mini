@@ -59,6 +59,23 @@ export default function CheckoutPage() {
     setIsProcessing(true)
     
     try {
+      if (pollingOrder) {
+        // Resend STK Push on existing order
+        const response = await fetch(`/api/orders/${pollingOrder}/resend`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phoneNumber }),
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || "Failed to resend payment prompt")
+        
+        setPollTimeLeft(300)
+        setIsProcessing(false)
+        toast.success("Payment prompt resent to your phone")
+        return
+      }
+
+      // Create new order
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -86,7 +103,8 @@ export default function CheckoutPage() {
       }
     } catch (error: any) {
       toast.error(error.message || "An unexpected error occurred")
-      setIsProcessing(false)
+    } finally {
+      if (!pollingOrder) setIsProcessing(false)
     }
   }
 

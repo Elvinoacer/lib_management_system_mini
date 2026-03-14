@@ -8,13 +8,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { signIn } from "next-auth/react"
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get("callbackUrl") || ""
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -47,9 +49,9 @@ export default function RegisterPage() {
       })
       
       if (signInRes?.error) {
-        router.push("/login")
+        router.push(`/login${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`)
       } else {
-        router.push("/books")
+        router.push(callbackUrl || "/books")
       }
     } catch (error: any) {
       toast.error(error.message || "An unexpected error occurred")
@@ -149,7 +151,10 @@ export default function RegisterPage() {
 
           <p className="mt-8 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-primary hover:underline">
+            <Link 
+              href={`/login${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`} 
+              className="font-medium text-primary hover:underline"
+            >
               Sign in
             </Link>
           </p>

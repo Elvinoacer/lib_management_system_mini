@@ -591,10 +591,6 @@ export type BookCreategenresInput = {
   set: string[]
 }
 
-export type NullableStringFieldUpdateOperationsInput = {
-  set?: string | null
-}
-
 export type BookUpdategenresInput = {
   set?: string[]
   push?: string | string[]

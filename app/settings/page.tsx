@@ -10,8 +10,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
-import { Loader2, BellRing, Lock, Trash2 } from "lucide-react"
+import { Loader2, BellRing, Lock, Trash2, AlertTriangle } from "lucide-react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useCart } from "@/lib/store/cart"
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export default function SettingsPage() {
   const { data: session, status } = useSession()
@@ -31,11 +42,11 @@ export default function SettingsPage() {
     enabled: status === 'authenticated'
   })
 
+  const clearCart = useCart((state) => state.clearCart)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState("")
 
   const handleDeleteAccount = async () => {
-    if (!window.confirm("Are you absolutely sure? This action cannot be undone and you will lose access to all your purchases.")) return
-
     setIsDeleting(true)
     try {
       const res = await fetch('/api/user/account', { method: 'DELETE' })
@@ -43,8 +54,9 @@ export default function SettingsPage() {
         const data = await res.json()
         throw new Error(data.error || "Failed to delete account")
       }
+      clearCart()
       toast.success("Account deleted successfully")
-      await signOut({ callbackUrl: '/' })
+      await signOut({ callbackUrl: '/account-deleted' })
     } catch (error: any) {
       toast.error(error.message)
       setIsDeleting(false)
@@ -207,14 +219,47 @@ export default function SettingsPage() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Once you delete your account, there is no going back. Please be certain. All your purchased books will be inaccessible.
                   </p>
-                  <Button 
-                    variant="destructive" 
-                    onClick={handleDeleteAccount}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Delete Account
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive">
+                        Delete Account
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-destructive" />
+                          Are you absolutely sure?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently anonymize your account, 
+                          remove your data from our servers, and you will lose access to all purchased books.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="my-4 space-y-2">
+                        <Label htmlFor="delete-confirm" className="text-sm">
+                          Please type <span className="font-bold select-none">DELETE</span> to confirm.
+                        </Label>
+                        <Input 
+                          id="delete-confirm" 
+                          value={deleteConfirmation} 
+                          onChange={(e) => setDeleteConfirmation(e.target.value)} 
+                          placeholder="DELETE" 
+                        />
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDeleteConfirmation("")}>Cancel</AlertDialogCancel>
+                        <Button 
+                          variant="destructive" 
+                          disabled={deleteConfirmation !== "DELETE" || isDeleting}
+                          onClick={handleDeleteAccount}
+                        >
+                          {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                          Permanently Delete Account
+                        </Button>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
 

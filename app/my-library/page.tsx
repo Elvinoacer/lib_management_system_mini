@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation"
 export default function MyLibraryPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const { data: session, status } = useSession()
   const router = useRouter()
 
@@ -39,6 +40,7 @@ export default function MyLibraryPage() {
 
   const handleDownload = async (book: any) => {
     try {
+      setDownloadingId(book.id)
       toast.info("Preparing your download...")
       const res = await fetch(`/api/downloads/${book.id}`)
       const data = await res.json()
@@ -52,6 +54,8 @@ export default function MyLibraryPage() {
       }
     } catch (error: any) {
       toast.error(error.message)
+    } finally {
+      setDownloadingId(null)
     }
   }
 
@@ -159,10 +163,15 @@ export default function MyLibraryPage() {
                           <Button
                             size="sm"
                             className="flex-1 gap-1"
+                            disabled={downloadingId === book.id}
                             onClick={() => handleDownload(book)}
                           >
-                            <Download className="h-4 w-4" />
-                            Download
+                            {downloadingId === book.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
+                            {downloadingId === book.id ? "Preparing..." : "Download"}
                           </Button>
                           <Button size="sm" variant="outline" className="gap-1">
                             <BookOpen className="h-4 w-4" />
@@ -213,10 +222,15 @@ export default function MyLibraryPage() {
                             <Button
                               size="sm"
                               className="gap-1"
+                              disabled={downloadingId === book.id}
                               onClick={() => handleDownload(book)}
                             >
-                              <Download className="h-4 w-4" />
-                              Download
+                              {downloadingId === book.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
+                              {downloadingId === book.id ? "Preparing..." : "Download"}
                             </Button>
                             <Button size="sm" variant="outline" className="gap-1">
                               <BookOpen className="h-4 w-4" />
