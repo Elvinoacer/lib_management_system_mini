@@ -8,7 +8,7 @@ import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, CreditCard, Smartphone, Shield, Lock, Loader2 } from "lucide-react"
+import { ArrowLeft, CreditCard, Shield, Lock, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCart } from "@/lib/store/cart"
 import { toast } from "sonner"
@@ -20,18 +20,11 @@ type PaymentMethod = "mpesa" | "card"
 
 export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("mpesa")
-  const [phoneNumber, setPhoneNumber] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
-  const [pollingOrder, setPollingOrder] = useState<string | null>(null)
-  const [pollTimeLeft, setPollTimeLeft] = useState<number | null>(null)
   const { data: session, status } = useSession()
   const router = useRouter()
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-    const s = seconds % 60
-    return `${m}:${s.toString().padStart(2, '0')}`
-  }
+
   
   const items = useCart((state) => state.items)
   const clearCart = useCart((state) => state.clearCart)
@@ -51,37 +44,17 @@ export default function CheckoutPage() {
       return
     }
 
-    if (paymentMethod === "mpesa" && !phoneNumber) {
-      toast.error("Please enter your M-Pesa phone number")
-      return
-    }
+
 
     setIsProcessing(true)
     
     try {
-      if (pollingOrder) {
-        // Resend STK Push on existing order
-        const response = await fetch(`/api/orders/${pollingOrder}/resend`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phoneNumber }),
-        })
-        const data = await response.json()
-        if (!response.ok) throw new Error(data.error || "Failed to resend payment prompt")
-        
-        setPollTimeLeft(300)
-        setIsProcessing(false)
-        toast.success("Payment prompt resent to your phone")
-        return
-      }
-
       // Create new order
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          bookIds: items.map(item => item.id),
-          phoneNumber: paymentMethod === "mpesa" ? phoneNumber : undefined
+          bookIds: items.map(item => item.id)
         }),
       })
 
@@ -91,72 +64,20 @@ export default function CheckoutPage() {
         throw new Error(data.error || "Failed to initiate payment")
       }
 
-      // Stay on page and poll for M-Pesa, redirect to IntaSend for others (or free)
-      if (data.url && paymentMethod !== "mpesa") {
+      if (data.url) {
         clearCart()
         window.location.href = data.url
-      } else if (data.orderId) {
-        setPollingOrder(data.orderId)
-        setPollTimeLeft(300)
       } else {
         throw new Error("Invalid response from payment gateway")
       }
     } catch (error: any) {
       toast.error(error.message || "An unexpected error occurred")
     } finally {
-      if (!pollingOrder) setIsProcessing(false)
+      setIsProcessing(false)
     }
   }
 
-  // Polling logic
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout
-    let countdownIntervalId: NodeJS.Timeout
 
-    const pollOrderStatus = async () => {
-      if (!pollingOrder) return
-      
-      try {
-        const res = await fetch(`/api/orders/${pollingOrder}`)
-        if (res.ok) {
-          const order = await res.json()
-          if (order.status === "PAID") {
-            toast.success("Payment received!")
-            router.push(`/checkout/success?orderId=${pollingOrder}`)
-            return // Stop polling
-          }
-        }
-      } catch (err) {
-        console.error("Polling error:", err)
-      }
-      
-      // Poll again after 3 seconds
-      timeoutId = setTimeout(pollOrderStatus, 3000)
-    }
-
-    if (pollingOrder) {
-      pollOrderStatus()
-      
-      countdownIntervalId = setInterval(() => {
-        setPollTimeLeft(prev => {
-          if (prev !== null && prev > 1) {
-            return prev - 1
-          } else if (prev === 1) {
-            toast.error("Payment timeout reached. Please try again.")
-            clearInterval(countdownIntervalId)
-            clearTimeout(timeoutId)
-            return 0
-          }
-          return prev
-        })
-      }, 1000)
-    }
-    
-    return () => {
-      clearTimeout(timeoutId)
-      clearInterval(countdownIntervalId)
-    }
-  }, [pollingOrder, router])
 
   if (status === "loading") {
     return (
@@ -208,69 +129,37 @@ export default function CheckoutPage() {
                         : "border-border hover:border-primary/50"
                     )}
                   >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#00C851]/10">
-                      <Smartphone className="h-5 w-5 text-[#00C851]" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">M-Pesa</p>
-                      <p className="text-sm text-muted-foreground">Pay with STK Push</p>
-                    </div>
-                  </button>
-
-                  {/* Card Option */}
-                  <button
-                    type="button"
-                    disabled
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg border-2 p-4 text-left transition-colors opacity-50 cursor-not-allowed",
-                      "border-border"
-                    )}
-                  >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                       <CreditCard className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-foreground">Card</p>
-                        <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Coming Soon</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">Visa / Mastercard</p>
+                      <p className="font-medium text-foreground">Secure Payment</p>
+                      <p className="text-sm text-muted-foreground">M-Pesa, Visa, Mastercard</p>
                     </div>
                   </button>
+
+
                 </div>
               </div>
 
               {/* Payment Details */}
               <div className="rounded-lg border border-border bg-card p-6">
-                {paymentMethod === "mpesa" && (
-                  <div className="flex flex-col gap-4">
-                    <div>
-                      <Label htmlFor="phone">M-Pesa Phone Number</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="e.g., 0712345678"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        className="mt-2"
-                      />
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        You will receive an STK Push prompt on this number
-                      </p>
-                    </div>
-                  </div>
-                )}
+                <div className="flex flex-col gap-4">
+                  <p className="text-sm text-muted-foreground">
+                    You will be redirected to IntaSend's secure payment gateway to complete your purchase using M-Pesa, Visa, or Mastercard.
+                  </p>
+                </div>
 
                 <Button
                   size="lg"
                   className="mt-6 w-full gap-2"
                   onClick={handleCheckout}
-                  disabled={isProcessing || (pollingOrder !== null && pollTimeLeft !== 0)}
+                  disabled={isProcessing}
                 >
                   {isProcessing ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      {pollingOrder && pollTimeLeft !== null && pollTimeLeft > 0 ? "Polling..." : "Processing..."}
+                      Processing...
                     </>
                   ) : (
                     <>
@@ -280,53 +169,7 @@ export default function CheckoutPage() {
                   )}
                 </Button>
 
-                {pollingOrder && pollTimeLeft !== null && pollTimeLeft > 0 && (
-                  <div className="mt-4 flex flex-col items-center gap-2">
-                    <p className="text-sm font-medium text-amber-600">
-                      Waiting for payment... ({formatTime(pollTimeLeft)} remaining)
-                    </p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full"
-                      onClick={() => {
-                        setPollingOrder(null)
-                        setPollTimeLeft(null)
-                        setIsProcessing(false)
-                      }}
-                    >
-                      Cancel & Go Back
-                    </Button>
-                    <Button 
-                      variant="secondary" 
-                      size="sm" 
-                      className="w-full"
-                      onClick={handleCheckout}
-                    >
-                      Resend M-Pesa Push
-                    </Button>
-                  </div>
-                )}
 
-                {pollingOrder && pollTimeLeft === 0 && (
-                  <div className="mt-4 flex flex-col items-center gap-2">
-                    <p className="text-sm font-medium text-destructive text-center">
-                      Payment timeout reached. Your order was saved, but payment was not received.
-                    </p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full"
-                      onClick={() => {
-                        setPollingOrder(null)
-                        setPollTimeLeft(null)
-                        setIsProcessing(false)
-                      }}
-                    >
-                      Try Again
-                    </Button>
-                  </div>
-                )}
 
                 <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
                   <Shield className="h-4 w-4" />

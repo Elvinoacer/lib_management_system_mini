@@ -102,11 +102,6 @@ export async function POST(req: Request) {
         redirect_url: `${process.env.NEXTAUTH_URL}/checkout/success`,
       };
 
-      if (phoneNumber) {
-        checkoutArgs.phone_number = phoneNumber;
-        checkoutArgs.method = 'M-PESA';
-      }
-
       const checkout = await intasend.collection().charge(checkoutArgs);
 
       // Update the order with the IntaSend reference string
