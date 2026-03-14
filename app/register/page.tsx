@@ -51,7 +51,7 @@ function RegisterForm() {
       if (signInRes?.error) {
         router.push(`/login${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`)
       } else {
-        router.push(callbackUrl || "/books")
+        window.location.href = callbackUrl || "/books"
       }
     } catch (error: any) {
       toast.error(error.message || "An unexpected error occurred")

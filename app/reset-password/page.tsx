@@ -62,7 +62,7 @@ function ResetPasswordForm() {
       if (signInRes?.error) {
         router.push(`/login?email=${encodeURIComponent(data.email)}`)
       } else {
-        router.push('/books')
+        window.location.href = '/books'
       }
     } catch (error: any) {
       toast.error(error.message)

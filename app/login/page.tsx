@@ -52,8 +52,7 @@ function LoginForm() {
           ? callbackUrl 
           : session?.user?.role === "ADMIN" ? "/admin" : "/books"
           
-        router.push(destination)
-        router.refresh()
+        window.location.href = destination
       }
     } catch (error) {
       toast.error("An unexpected error occurred")
