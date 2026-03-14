@@ -1,0 +1,14 @@
+
+> my-project@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://172.21.228.150:3000
+- Environments: .env.local, .env
+
+✓ Starting...
+✓ Ready in 1313ms
+prisma:query SELECT "public"."Book"."id", "public"."Book"."title", "public"."Book"."author", "public"."Book"."isbn", "public"."Book"."genres", "public"."Book"."description", "public"."Book"."coverUrl", "public"."Book"."price", "public"."Book"."isFree", "public"."Book"."publishedYear", "public"."Book"."pageCount", "public"."Book"."language", "public"."Book"."createdAt" FROM "public"."Book" WHERE 1=1 ORDER BY "public"."Book"."createdAt" DESC LIMIT $1 OFFSET $2
+ GET /api/books 200 in 1048ms (compile: 649ms, render: 399ms)
+ GET /api/admin/stats 403 in 739ms (compile: 712ms, render: 27ms)

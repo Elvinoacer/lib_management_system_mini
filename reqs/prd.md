@@ -1,6 +1,6 @@
 # 📚 Digital Library Management System — Full Stack Starter Guide
 
-> **Stack:** Next.js 14 · PostgreSQL · Prisma · IntaSend · Cloudflare R2
+> **Stack:** Next.js 14 · PostgreSQL · Prisma · IntaSend · Cloudinary
 
 ---
 
@@ -14,7 +14,7 @@
 6. [API Routes Reference](#6-api-routes-reference)
 7. [Authentication & Route Protection](#7-authentication--route-protection)
 8. [IntaSend Payment Integration](#8-intasend-payment-integration)
-9. [Cloudflare R2 File Storage](#9-cloudflare-r2-file-storage)
+9. [Cloudinary File Storage](#9-cloudinary-file-storage)
 10. [Development Workflow](#10-development-workflow)
 11. [Deployment Checklist](#11-deployment-checklist)
 12. [Recommended Next Steps (v2 Ideas)](#12-recommended-next-steps-v2-ideas)
@@ -31,7 +31,7 @@ This guide walks you through building a full-featured digital library platform w
 - Secure user registration and role-based access
 - A shopping cart and checkout powered by IntaSend (Kenya-native payments)
 - A personal library dashboard — users access books they have purchased
-- A Cloudflare R2-backed file system with signed, expiring download URLs
+- A Cloudinary-backed file system with authenticated download URLs
 - An admin panel to manage books, users, and orders
 
 ### Tech Stack at a Glance
@@ -43,7 +43,7 @@ This guide walks you through building a full-featured digital library platform w
 | ORM | Prisma | Type-safe database access layer |
 | Auth | NextAuth.js v5 | Email/password + session management |
 | Payments | IntaSend | STK Push (M-Pesa), card payments |
-| File Storage | Cloudflare R2 | S3-compatible, cheap egress |
+| File Storage | Cloudinary | Cloud-based image and video management services |
 | UI | shadcn/ui + Tailwind CSS | Accessible component library |
 | Validation | Zod | Schema validation for forms & APIs |
 | Forms | React Hook Form | Performant, type-safe forms |
@@ -76,8 +76,8 @@ npm install zod react-hook-form @hookform/resolvers
 npx shadcn-ui@latest init
 npx shadcn-ui@latest add button card input label badge
 
-# Cloudflare R2 (S3-compatible SDK)
-npm install @aws-sdk/client-s3 @aws-sdk/s3-request-presigner
+# Cloudinary
+npm install cloudinary
 
 # IntaSend Payment Gateway
 npm install intasend-node
@@ -101,12 +101,11 @@ DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/digital_library"
 NEXTAUTH_SECRET="generate-with: openssl rand -base64 32"
 NEXTAUTH_URL="http://localhost:3000"
 
-# Cloudflare R2
-R2_ACCOUNT_ID="your-cloudflare-account-id"
-R2_ACCESS_KEY_ID="your-r2-access-key"
-R2_SECRET_ACCESS_KEY="your-r2-secret-key"
-R2_BUCKET_NAME="digital-library-books"
-R2_PUBLIC_URL="https://your-bucket.r2.dev"
+# Cloudinary
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_API_KEY="your-api-key"
+CLOUDINARY_API_SECRET="your-api-secret"
 
 # IntaSend
 INTASEND_PUBLISHABLE_KEY="ISPubKey_..."
@@ -159,7 +158,7 @@ model Book {
   genres        String[]
   description   String
   coverUrl      String?
-  fileKey       String      // R2 object key (never expose this directly)
+  fileKey       String      // Cloudinary object key (never expose this directly)
   price         Decimal     @db.Decimal(10,2)
   isFree        Boolean     @default(false)
   publishedYear Int?
@@ -279,7 +278,7 @@ src/
 ├── lib/
 │   ├── prisma.ts                # Prisma singleton
 │   ├── auth.ts                  # NextAuth config
-│   ├── r2.ts                    # Cloudflare R2 client
+│   ├── cloudinary.ts            # Cloudinary client
 │   └── intasend.ts              # IntaSend client
 ├── components/
 │   ├── books/BookCard.tsx
@@ -309,29 +308,19 @@ if (process.env.NODE_ENV !== 'production')
   globalForPrisma.prisma = prisma
 ```
 
-### 5.2 Cloudflare R2 Client (`lib/r2.ts`)
+### 5.2 Cloudinary Client (`lib/cloudinary.ts`)
 
 ```ts
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { v2 as cloudinary } from 'cloudinary';
 
-export const r2 = new S3Client({
-  region: 'auto',
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-})
+cloudinary.config({
+  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true,
+});
 
-// Generate a signed URL valid for 15 minutes
-export async function getSignedDownloadUrl(fileKey: string) {
-  const command = new GetObjectCommand({
-    Bucket: process.env.R2_BUCKET_NAME!,
-    Key: fileKey,
-  })
-  return getSignedUrl(r2, command, { expiresIn: 900 })
-}
+export default cloudinary;
 ```
 
 ### 5.3 Download API Route — Protected (`api/downloads/[bookId]/route.ts`)
@@ -341,7 +330,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getSignedDownloadUrl } from '@/lib/r2'
+import cloudinary from '@/lib/cloudinary'
 
 export async function GET(
   req: NextRequest,
@@ -358,7 +347,14 @@ export async function GET(
 
   if (!download) return NextResponse.json({ error: 'Not purchased' }, { status: 403 })
 
-  const url = await getSignedDownloadUrl(download.book.fileKey)
+  const url = cloudinary.utils.private_download_url(
+    download.book.fileKey, // public_id
+    '', // format
+    {
+      attachment: true,
+      expires_at: Math.floor(Date.now() / 1000) + 900 // 15 mins
+    }
+  );
   return NextResponse.json({ url })
 }
 ```
@@ -461,7 +457,7 @@ export async function POST(req: Request) {
 | `DELETE` | `/api/books/[id]` | Admin | Remove a book |
 | `POST` | `/api/orders` | User | Create order & get checkout URL |
 | `GET` | `/api/orders/[id]` | User | Get order status |
-| `GET` | `/api/downloads/[bookId]` | User (owner) | Get signed R2 download URL |
+| `GET` | `/api/downloads/[bookId]` | User (owner) | Get signed Cloudinary download URL |
 | `POST` | `/api/webhooks/intasend` | IntaSend | Payment callback → grant access |
 | `GET` | `/api/admin/users` | Admin | List all users |
 | `GET` | `/api/admin/orders` | Admin | List all orders |
@@ -550,7 +546,7 @@ export const config = {
 4. User completes payment on IntaSend's page (M-Pesa, card, etc.)
 5. IntaSend sends a webhook to `POST /api/webhooks/intasend`
 6. Webhook verifies signature, updates order to `PAID`, creates `Download` records
-7. User is now able to download their books via signed R2 URLs
+7. User is now able to download their books via authenticated Cloudinary URLs
 
 ### Testing with IntaSend Sandbox
 
@@ -564,39 +560,19 @@ const intasend = new IntaSend(pubKey, secretKey, true)
 
 ---
 
-## 9. Cloudflare R2 File Storage
+## 9. Cloudinary File Storage
 
-> 🪣 R2 is S3-compatible with zero egress fees — perfect for downloadable files. Never expose `fileKey` to the frontend. Always generate short-lived signed URLs.
+> 🪣 Cloudinary provides secure file delivery. Never expose `fileKey` to the frontend. Always generate short-lived signed URLs.
 
 ### 9.1 Setup Bucket
 
-1. Log into Cloudflare Dashboard → R2 → Create Bucket → name it `digital-library-books`
-2. Go to R2 → Manage R2 API Tokens → Create Token with **Object Read & Write**
-3. Copy Account ID, Access Key ID, and Secret Access Key to `.env.local`
+1. Sign up/Log in to Cloudinary
+2. Get your Cloud Name, API Key, and API Secret
+3. Add these credentials to `.env.local`
 
-### 9.2 Uploading a Book File (Admin)
+### 9.2 Generating Download URLs
 
-```ts
-import { PutObjectCommand } from '@aws-sdk/client-s3'
-import { r2 } from '@/lib/r2'
-
-export async function uploadBookFile(file: Buffer, filename: string) {
-  const key = `books/${Date.now()}-${filename}`
-
-  await r2.send(new PutObjectCommand({
-    Bucket: process.env.R2_BUCKET_NAME!,
-    Key: key,
-    Body: file,
-    ContentType: 'application/pdf',
-  }))
-
-  return key  // Store this in Book.fileKey — never expose to users
-}
-```
-
-### 9.3 Generating Download URLs
-
-When a user requests to download a book they've purchased, call `getSignedDownloadUrl(book.fileKey)` from `lib/r2.ts` (shown in Section 5.2). The URL expires in 15 minutes and cannot be shared or reused.
+When a user requests to download a book they've purchased, `api/downloads` generates an authenticated URL using `cloudinary.utils.private_download_url(book.fileKey, '', options)` that downloads the file as an attachment. The URL expires in 15 minutes.
 
 ---
 
@@ -608,7 +584,7 @@ When a user requests to download a book they've purchased, call `getSignedDownlo
 2. Implement auth (register, login, NextAuth session)
 3. Build the books API (GET list, GET by ID)
 4. Build the book browsing and search UI
-5. Set up Cloudflare R2 and the admin book upload form
+5. Set up Cloudinary and the admin book form
 6. Implement cart state (Zustand or React context)
 7. Build checkout flow with IntaSend (use sandbox first)
 8. Implement the webhook to unlock downloads on payment
@@ -637,7 +613,6 @@ npx prisma generate            # Regenerate client after schema changes
 | PostgreSQL | Use [Neon.tech](https://neon.tech) or Supabase (free tier available) |
 | Environment Vars | Add all `.env.local` values to Vercel project settings |
 | IntaSend Webhook | Set webhook URL to `https://your-domain.com/api/webhooks/intasend` |
-| R2 CORS | Configure Cloudflare R2 CORS policy to allow your domain |
 | NEXTAUTH_URL | Update to your production domain |
 | NEXTAUTH_SECRET | Generate a strong secret: `openssl rand -base64 32` |
 | Test Payments | Switch IntaSend to live keys and test a real KES 1 transaction |
@@ -657,4 +632,4 @@ npx prisma generate            # Regenerate client after schema changes
 
 ---
 
-*Happy building! 🚀  Built with Next.js · Prisma · IntaSend · Cloudflare R2*
+*Happy building! 🚀  Built with Next.js · Prisma · IntaSend · Cloudinary*

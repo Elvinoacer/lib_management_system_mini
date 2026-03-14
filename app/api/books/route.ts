@@ -37,6 +37,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(books)
   } catch (error) {
+    console.error("GET /api/books Error:", error)
     return NextResponse.json({ error: "Failed to fetch books" }, { status: 500 })
   }
 }

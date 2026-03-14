@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { getSignedDownloadUrl } from "@/lib/r2"
+import cloudinary from "@/lib/cloudinary"
 import { NextResponse } from "next/server"
 
 export async function GET(
@@ -30,7 +30,14 @@ export async function GET(
     }
 
     // Generate signed URL
-    const url = await getSignedDownloadUrl(download.book.fileKey)
+    const url = cloudinary.utils.private_download_url(
+      download.book.fileKey,
+      '', // format
+      {
+        attachment: true,
+        expires_at: Math.floor(Date.now() / 1000) + 900 // 15 mins
+      }
+    )
 
     return NextResponse.json({ url })
   } catch (error) {

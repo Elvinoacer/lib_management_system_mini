@@ -12,7 +12,7 @@ export async function GET() {
     const downloads = await prisma.download.findMany({
       where: { userId: session.user.id },
       include: { book: true },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { grantedAt: 'desc' }
     })
 
     const books = downloads.map(d => d.book)

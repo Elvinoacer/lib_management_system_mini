@@ -1,42 +1,32 @@
 import { auth } from "@/lib/auth"
-import { r2 } from "@/lib/r2"
-import { PutObjectCommand } from "@aws-sdk/client-s3"
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
+import cloudinary from "@/lib/cloudinary"
 import { NextResponse } from "next/server"
-import { randomUUID } from "crypto"
 
 export async function POST(req: Request) {
   try {
     const session = await auth()
     
-    
     if (session?.user?.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
 
-    const { filename, contentType } = await req.json()
-
-    if (!filename || !contentType) {
-      return NextResponse.json({ error: "Missing filename or contentType" }, { status: 400 })
-    }
-
-    const fileKey = `${randomUUID()}-${filename}`
+    const timestamp = Math.round((new Date).getTime() / 1000);
     
-    const command = new PutObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME,
-      Key: fileKey,
-      ContentType: contentType,
+    // Create signature for Cloudinary upload
+    const signature = cloudinary.utils.api_sign_request({
+      timestamp: timestamp,
+      folder: 'books'
+    }, process.env.CLOUDINARY_API_SECRET!);
+
+    return NextResponse.json({ 
+      signature, 
+      timestamp, 
+      api_key: process.env.CLOUDINARY_API_KEY,
+      cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME,
+      folder: 'books'
     })
-
-    const uploadUrl = await getSignedUrl(r2, command, { expiresIn: 3600 })
-
-    const publicUrl = process.env.R2_PUBLIC_URL 
-      ? `${process.env.R2_PUBLIC_URL}/${fileKey}`
-      : `https://${process.env.R2_BUCKET_NAME}.r2.cloudflarestorage.com/${fileKey}`
-
-    return NextResponse.json({ uploadUrl, publicUrl, key: fileKey })
   } catch (error: any) {
-    console.error("Upload error:", error)
-    return NextResponse.json({ error: "Failed to generate upload URL" }, { status: 500 })
+    console.error("Upload signature error:", error)
+    return NextResponse.json({ error: "Failed to generate upload signature" }, { status: 500 })
   }
 }

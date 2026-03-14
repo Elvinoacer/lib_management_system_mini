@@ -1,0 +1,63 @@
+
+> my-project@0.1.0 dev
+> next dev
+
+⚠ Port 3000 is in use by an unknown process, using available port 3001 instead.
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://172.21.228.150:3001
+- Environments: .env.local, .env
+
+✓ Starting...
+○ Compiling proxy ...
+✓ Ready in 21.2s
+GET /api/books Error: Error [PrismaClientKnownRequestError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].book.findMany()` invocation in
+/home/elvin/Projects/businesses/LMS_BOOKS/v_1/.next/dev/server/chunks/[root-of-the-server]__3e6b6fde._.js:557:156
+
+  554 const genre = searchParams.get("genre");
+  555 const page = Number(searchParams.get("page") || 1);
+  556 const limit = Number(searchParams.get("limit") || 20);
+→ 557 const books = await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].book.findMany(
+Can't reach database server at 127.0.0.1:51213
+    at <unknown> (app/api/books/route.ts:15:37)
+    at <unknown> (Can't reach database server at 127.0.0.1:51213)
+    at async GET (app/api/books/route.ts:15:19)
+  13 |     const limit = Number(searchParams.get("limit") || 20)
+  14 |
+> 15 |     const books = await prisma.book.findMany({
+     |                                     ^
+  16 |       where: {
+  17 |         AND: [
+  18 |           query ? { {
+  code: 'P1001',
+  meta: [Object],
+  clientVersion: '7.5.0'
+}
+ GET /api/books 500 in 4.0s (compile: 2.9s, render: 1055ms)
+GET /api/books Error: Error [PrismaClientKnownRequestError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].book.findMany()` invocation in
+/home/elvin/Projects/businesses/LMS_BOOKS/v_1/.next/dev/server/chunks/[root-of-the-server]__3e6b6fde._.js:557:156
+
+  554 const genre = searchParams.get("genre");
+  555 const page = Number(searchParams.get("page") || 1);
+  556 const limit = Number(searchParams.get("limit") || 20);
+→ 557 const books = await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].book.findMany(
+Can't reach database server at 127.0.0.1:51213
+    at <unknown> (app/api/books/route.ts:15:37)
+    at <unknown> (Can't reach database server at 127.0.0.1:51213)
+    at async GET (app/api/books/route.ts:15:19)
+  13 |     const limit = Number(searchParams.get("limit") || 20)
+  14 |
+> 15 |     const books = await prisma.book.findMany({
+     |                                     ^
+  16 |       where: {
+  17 |         AND: [
+  18 |           query ? { {
+  code: 'P1001',
+  meta: [Object],
+  clientVersion: '7.5.0'
+}
+ GET /api/books 500 in 511ms (compile: 11ms, render: 499ms)
+  Reload env: .env.local
+[?25h
